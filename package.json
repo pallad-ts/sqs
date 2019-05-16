@@ -1,0 +1,52 @@
+{
+  "name": "alpha-sqs",
+  "version": "0.1.0",
+  "description": "AWS SQS Consumer with retry support",
+  "main": "compiled/index.js",
+  "types": "compiled/index.d.ts",
+  "scripts": {
+    "test": "jest",
+    "compile": "./node_modules/.bin/tsc"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wookieb/alpha-sqs-consumer.git"
+  },
+  "keywords": [
+    "sqs",
+    "aws",
+    "alpha-packages",
+    "retry",
+    "queue"
+  ],
+  "author": "Łukasz Kużyński <lukasz.kuzynski@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/wookieb/alpha-sqs-consumer/issues"
+  },
+  "homepage": "https://github.com/wookieb/alpha-sqs-consumer#readme",
+  "peerDependencies": {
+    "aws-sdk": "^2.88.0"
+  },
+  "dependencies": {
+    "@types/debug": "0.0.29",
+    "alpha-serializer": "^0.4.0",
+    "aws-sdk": "^2.457.0",
+    "debug": "^4.1.1",
+    "predicates": "^2.0.3",
+    "tslib": "^1.9.3"
+  },
+  "devDependencies": {
+    "@types/faker": "^4.1.5",
+    "@types/jest": "^24.0.13",
+    "@types/node": "^8.10.48",
+    "@types/sinon": "^7.0.11",
+    "chai": "^4.2.0",
+    "faker": "^4.1.0",
+    "jest": "^24.8.0",
+    "sinon": "^7.3.2",
+    "ts-jest": "^24.0.2",
+    "ts-node": "^3.3.0",
+    "typescript": "^3.4.5"
+  }
+}
