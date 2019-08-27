@@ -1,10 +1,3 @@
 module.exports = {
-    preset: 'ts-jest',
-    testEnvironment: 'node',
-    testMatch: [
-        "**/__tests__/**/*.ts"
-    ],
-    moduleFileExtensions: [
-        'js', 'ts'
-    ]
+    projects: ['<rootDir>/src', '<rootDir>/integration_tests'],
 };

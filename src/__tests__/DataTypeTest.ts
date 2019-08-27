@@ -38,6 +38,17 @@ describe('DataType', () => {
             expect(type.isNumberType)
                 .toBeFalsy();
         });
+
+        it.each<[any, boolean]>([
+            ['test', true],
+            [String('test'), true],
+            [undefined, false],
+            [10, false],
+            [Buffer.from('test', 'utf8'), false]
+        ])('detects string type: %p', (value, expected) => {
+            expect(type.isType(value))
+                .toEqual(expected);
+        });
     });
 
     describe('Number', () => {
@@ -76,6 +87,17 @@ describe('DataType', () => {
 
             expect(type.isNumberType)
                 .toBeTruthy();
+        });
+
+        it.each<[any, boolean]>([
+            [10, true],
+            [NaN, true],
+            [undefined, false],
+            ['test', false],
+            [Buffer.from('test', 'utf8'), false]
+        ])('detects number type: %p', (value, expected) => {
+            expect(type.isType(value))
+                .toEqual(expected);
         });
     });
 
@@ -128,13 +150,25 @@ describe('DataType', () => {
             })
                 .toThrowError(/Value for binary attribute has to be/)
         });
+
+        it.each<[any, boolean]>([
+            ['test', false],
+            [10, false],
+            [undefined, false],
+            [stringBuffer, true],
+            [uintArray, true],
+        ])('detects binary type: %p', (value, expected) => {
+            expect(type.isType(value))
+                .toEqual(expected);
+        });
     });
 
     describe('Custom', () => {
         const type = new DataType<Date, string>(
             'String.date',
             x => x.toISOString(),
-            x => new Date(x)
+            x => new Date(x),
+            x => x instanceof Date
         );
 
         const date = new Date();
@@ -174,7 +208,7 @@ describe('DataType', () => {
         }
 
         const e = expect(() => {
-            new DataType(type, func, func);
+            new DataType(type, func, func, x => true);
         });
         if (isValid) {
             e.not.toThrowError(message);

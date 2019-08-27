@@ -1,37 +1,31 @@
-import * as AWS from 'aws-sdk';
-import {Consumer, ConsumerFunction, ConsumerOptions} from "./Consumer";
-import {RetryAttributes, RetryTopology, RetryTopologyEnchanted} from "./RetryTopology";
-import {Message} from "./Message";
-import {ResultContext, ResultHandler} from "./ResultContext";
-import {getAlphaAttributes, isFifoQueue, removeUnsupportedMessageAttributesValues} from "./helpers";
-
-
-interface ManagerConsumerOptions extends ConsumerOptions {
-    resultHandler?: ResultHandler,
-    consumerFunction: ConsumerFunction
-};
+import {Consumer, ConsumerFunction} from "./Consumer";
+import {ResultHandler} from "./ResultContext";
+import {QueueManager} from "./QueueManager";
+import {Publisher} from "./Publisher";
+import {MessageConverter} from "./MessageConverter";
 
 export class Manager {
-    private consumers: Consumer[] = [];
+    private consumers: Set<Consumer> = new Set();
 
-    private retryTopologyEnchanted: RetryTopologyEnchanted;
-
-    private retryConsumer: Consumer;
-
-    constructor(private sqs: AWS.SQS) {
+    constructor(readonly queueManager: QueueManager,
+                readonly messageConverter: MessageConverter) {
 
     }
 
-    async consume(options: ManagerConsumerOptions): Promise<Consumer> {
-        const {consumerFunction, resultHandler, ...otherOptions} = options;
-        const consumer = new Consumer(this.sqs, options);
-        consumer.onMessage(consumerFunction, resultHandler);
+    async createPublisher(queueName: string, accountId?: string) {
+        const queueInfo = await this.queueManager.getInfo(queueName, accountId);
+        return new Publisher(this.queueManager.sqs, this.messageConverter, queueInfo);
+    }
 
-        if (this.retryTopologyEnchanted) {
-            consumer.setEnchantedRetryTopology(this.retryTopologyEnchanted);
+    async consume(queueName: string, func: ConsumerFunction, options: Manager.ConsumerOptions = {}): Promise<Consumer> {
+        const queueInfo = await this.queueManager.getInfo(queueName);
+        const {resultHandler, autoStart = true, ...consumerOptions} = options;
+        const consumer = new Consumer(this.queueManager.sqs, this.messageConverter, queueInfo, consumerOptions);
+        consumer.onMessage(func, resultHandler);
+        this.consumers.add(consumer);
+        if (autoStart) {
+            consumer.start();
         }
-        this.consumers.push(consumer);
-        await consumer.start();
         return consumer;
     }
 
@@ -40,7 +34,9 @@ export class Manager {
      */
     stopAllConsumers() {
         for (const consumer of this.consumers) {
-            consumer.stop();
+            if (consumer.isRunning) {
+                consumer.stop();
+            }
         }
     }
 
@@ -52,87 +48,30 @@ export class Manager {
             this.stopAllConsumers();
 
             const getTotalOngoingConsumptions = () => {
-                return this.consumers.reduce((total, c) => {
-                    return total + c.ongoingConsumptions;
-                }, 0);
+                return Array.from(this.consumers.values())
+                    .reduce((total, c) => {
+                        return total + c.ongoingConsumptions;
+                    }, 0);
             };
 
-            for (const consumer of this.consumers) {
-                consumer.once('all-consumed', () => {
-                    if (getTotalOngoingConsumptions() === 0) {
-                        resolve();
-                    }
-                });
+            if (getTotalOngoingConsumptions() === 0) {
+                resolve();
+            } else {
+                for (const consumer of this.consumers) {
+                    consumer.once('all-consumed', () => {
+                        if (getTotalOngoingConsumptions() === 0) {
+                            resolve();
+                        }
+                    });
+                }
             }
         });
-    }
-
-    /**
-     * Setups topology necessary for
-     *
-     * @param {RetryTopology} topology
-     * @returns {Promise<void>}
-     */
-    async setupRetryTopology(topology: RetryTopology) {
-        this.retryConsumer = new Consumer(this.sqs, {
-            queueName: topology.queueName,
-            minMessages: 1,
-            maxMessages: 1
-        });
-
-        const retryResultHandler: ResultHandler = async (context: ResultContext, error: Error, result?: boolean) => {
-            if (result === true) {
-                await context.ack();
-                return;
-            }
-            await context.reject();
-        };
-
-        const consumerFunction: ConsumerFunction = async (message: Message) => {
-            const alphaAttributes = getAlphaAttributes(message);
-
-            if (alphaAttributes.date > Date.now()) {
-                this.retryConsumer.stop();
-                setTimeout(this.retryConsumer.start.bind(this.retryConsumer), alphaAttributes.date - Date.now());
-                return false;
-            }
-
-            const newMessage: AWS.SQS.Types.SendMessageRequest = {
-                QueueUrl: alphaAttributes.targetQueueUrl,
-                MessageBody: message.sqsMessage.Body,
-                MessageAttributes: Object.assign({}, message.sqsMessage.MessageAttributes)
-            };
-
-            if (isFifoQueue(alphaAttributes.targetQueueUrl)) {
-                newMessage.MessageGroupId = alphaAttributes.messageGroup;
-
-                let newDeduplicationId = message.messageDeduplicationId || '';
-                newDeduplicationId += '_retry' + alphaAttributes.retryAttempt;
-                newMessage.MessageDeduplicationId = newDeduplicationId;
-            }
-
-            ALPHA_ATTRIBUTES_KEYS.forEach(k => {
-                delete newMessage.MessageAttributes[k];
-            });
-
-            removeUnsupportedMessageAttributesValues(newMessage.MessageAttributes);
-
-            await this.sqs.sendMessage(newMessage).promise();
-            return true;
-        };
-
-        this.retryConsumer.onMessage(consumerFunction, retryResultHandler);
-        await this.retryConsumer.start();
-        this.retryTopologyEnchanted = {...topology, queueUrl: this.retryConsumer.queueUrl};
-
-        for (const consumer of this.consumers) {
-            consumer.setEnchantedRetryTopology(this.retryTopologyEnchanted);
-        }
     }
 }
 
-const ALPHA_ATTRIBUTES_KEYS = [
-    RetryAttributes.messageGroup,
-    RetryAttributes.queueUrl,
-    RetryAttributes.date
-];
+export namespace Manager {
+    export interface ConsumerOptions extends Partial<Consumer.Options> {
+        resultHandler?: ResultHandler,
+        autoStart?: boolean
+    }
+}

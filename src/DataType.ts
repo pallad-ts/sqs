@@ -4,7 +4,7 @@ import {isTypedArray, TypedArray} from "./typedArray";
 
 const isStringKind = is.matches(/^String(?:\..+)?$/);
 const isNumberKind = is.matches(/^Number(?:\..+)?$/);
-const isBinaryKind = is.matches(/^Binary(?:\..+)?$/);
+export const isBinaryKind = is.matches(/^Binary(?:\..+)?$/);
 
 const assertName = is.assert(
     is.any(
@@ -18,7 +18,8 @@ const assertName = is.assert(
 export class DataType<TSource, TRaw extends DataType.RawType = DataType.RawType> {
     constructor(readonly name: string,
                 private serializer: DataType.Serializer<TSource, TRaw>,
-                private deserializer: DataType.Deserializer<TSource, TRaw>
+                private deserializer: DataType.Deserializer<TSource, TRaw>,
+                readonly isType: (value: any) => boolean
     ) {
         assertName(this.name);
         Object.freeze(this);
@@ -61,7 +62,6 @@ export class DataType<TSource, TRaw extends DataType.RawType = DataType.RawType>
 }
 
 export namespace DataType {
-
     export function getBasicType(type: string) {
         if (isStringKind(type)) {
             return Common.STRING.name;
@@ -78,7 +78,6 @@ export namespace DataType {
         throw new Error(`Cannot extract basic type from type: ${type} as it has to be prefixed with "String.", "Number." or "Binary."`);
     }
 
-
     export type RawType = string | number | Buffer;
 
     export type Serializer<TSource, TRaw extends RawType = RawType> = (data: TSource) => TRaw;
@@ -88,13 +87,15 @@ export namespace DataType {
         export const STRING = new DataType<string, string>(
             'String',
             x => x + '',
-            x => x
+            x => x,
+            is.string
         );
 
         export const NUMBER = new DataType<number, string>(
             'Number',
             x => x + '',
-            x => parseFloat(x)
+            x => parseFloat(x),
+            is.number
         );
 
         export const BINARY = new DataType<Buffer | TypedArray | string, Buffer>(
@@ -115,7 +116,8 @@ export namespace DataType {
 
                 throw new Error('Value for binary attribute has to be a Buffer, a TypedArray or a string');
             },
-            x => x
+            x => x,
+            is.any(is.instanceOf(Buffer), isTypedArray)
         );
     }
 }

@@ -1,0 +1,207 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Message converting to input message fifo with dedup with delay 1`] = `
+Object {
+  "attributes": Object {
+    "any": Object {
+      "type": "Number",
+      "value": "100",
+    },
+    "bin": Object {
+      "type": "Binary",
+      "value": Object {
+        "data": Array [
+          116,
+          101,
+          115,
+          116,
+        ],
+        "type": "Buffer",
+      },
+    },
+    "some": Object {
+      "type": "String",
+      "value": "string",
+    },
+  },
+  "body": "some-body",
+  "deduplicationId": "dedupid",
+  "delay": 100,
+  "groupId": "groupid",
+}
+`;
+
+exports[`Message converting to input message fifo with dedup without delay 1`] = `
+Object {
+  "attributes": Object {
+    "any": Object {
+      "type": "Number",
+      "value": "100",
+    },
+    "bin": Object {
+      "type": "Binary",
+      "value": Object {
+        "data": Array [
+          116,
+          101,
+          115,
+          116,
+        ],
+        "type": "Buffer",
+      },
+    },
+    "some": Object {
+      "type": "String",
+      "value": "string",
+    },
+  },
+  "body": "some-body",
+  "deduplicationId": "dedupid",
+  "delay": undefined,
+  "groupId": "groupid",
+}
+`;
+
+exports[`Message converting to input message fifo with delay 1`] = `
+Object {
+  "attributes": Object {
+    "any": Object {
+      "type": "Number",
+      "value": "100",
+    },
+    "bin": Object {
+      "type": "Binary",
+      "value": Object {
+        "data": Array [
+          116,
+          101,
+          115,
+          116,
+        ],
+        "type": "Buffer",
+      },
+    },
+    "some": Object {
+      "type": "String",
+      "value": "string",
+    },
+  },
+  "body": "some-body",
+  "deduplicationId": undefined,
+  "delay": 100,
+  "groupId": "groupid",
+}
+`;
+
+exports[`Message converting to input message fifo without delay 1`] = `
+Object {
+  "attributes": Object {
+    "any": Object {
+      "type": "Number",
+      "value": "100",
+    },
+    "bin": Object {
+      "type": "Binary",
+      "value": Object {
+        "data": Array [
+          116,
+          101,
+          115,
+          116,
+        ],
+        "type": "Buffer",
+      },
+    },
+    "some": Object {
+      "type": "String",
+      "value": "string",
+    },
+  },
+  "body": "some-body",
+  "deduplicationId": undefined,
+  "delay": undefined,
+  "groupId": "groupid",
+}
+`;
+
+exports[`Message converting to input message standard with delay 1`] = `
+Object {
+  "attributes": Object {
+    "any": Object {
+      "type": "Number",
+      "value": "100",
+    },
+    "bin": Object {
+      "type": "Binary",
+      "value": Object {
+        "data": Array [
+          116,
+          101,
+          115,
+          116,
+        ],
+        "type": "Buffer",
+      },
+    },
+    "some": Object {
+      "type": "String",
+      "value": "string",
+    },
+  },
+  "body": "some-body",
+  "deduplicationId": undefined,
+  "delay": 100,
+  "groupId": undefined,
+}
+`;
+
+exports[`Message converting to input message standard without attributes with delay 1`] = `
+Object {
+  "attributes": undefined,
+  "body": "some-body",
+  "deduplicationId": undefined,
+  "delay": 100,
+  "groupId": undefined,
+}
+`;
+
+exports[`Message converting to input message standard without attributes without delay 1`] = `
+Object {
+  "attributes": undefined,
+  "body": "some-body",
+  "deduplicationId": undefined,
+  "delay": undefined,
+  "groupId": undefined,
+}
+`;
+
+exports[`Message converting to input message standard without delay 1`] = `
+Object {
+  "attributes": Object {
+    "any": Object {
+      "type": "Number",
+      "value": "100",
+    },
+    "bin": Object {
+      "type": "Binary",
+      "value": Object {
+        "data": Array [
+          116,
+          101,
+          115,
+          116,
+        ],
+        "type": "Buffer",
+      },
+    },
+    "some": Object {
+      "type": "String",
+      "value": "string",
+    },
+  },
+  "body": "some-body",
+  "deduplicationId": undefined,
+  "delay": undefined,
+  "groupId": undefined,
+}
+`;

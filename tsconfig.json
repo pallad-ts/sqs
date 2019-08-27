@@ -16,5 +16,11 @@
     "esModuleInterop": true,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true
-  }
+  },
+  "exclude": [
+    "**/__tests__/**/*"
+  ],
+  "include": [
+    "src/**/*"
+  ]
 }

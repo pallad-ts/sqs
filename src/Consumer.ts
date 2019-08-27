@@ -4,61 +4,33 @@ import {Message} from "./Message";
 import {ResultContext, ResultHandler} from "./ResultContext";
 import debug from './debug';
 import * as debugModule from 'debug';
-import {isFifoQueue} from "./helpers";
-import {RetryTopologyEnchanted} from "./RetryTopology";
+import {Queue} from "./Queue";
+import {MessageConverter} from "./MessageConverter";
+import {ulidPrefixedFactory} from "./requestAttemptGenerator";
 
-const randomId = require('random-id');
-
-export interface ConsumerOptions {
-    /**
-     * Queue name to consume. Setting ".fifo" suffix automatically sets isFifo flag to true.
-     */
-    queueName: string;
-
-    /**
-     * Explicitly require queue to be a FIFO queue
-     */
-    isFifo?: boolean,
-
-    /**
-     * Maximum amount of messages to receive within a single ReceiveMessage request
-     */
-    maxMessages?: number,
-
-    /**
-     * Amount of messages needed to be consumed before starting pooling for another messages from a queue
-     */
-    minMessages?: number
-}
-
-export type ConsumerFunction = (message?: Message) => any;
-
-type ConsumerDefinition = {
-    consumerFunction: ConsumerFunction,
-    resultHandler: ResultHandler
-}
+export type ConsumerFunction = (message: Message) => any;
 
 export class Consumer extends EventEmitter {
 
     public ongoingConsumptions = 0;
     public isRunning = false;
-    public queueUrl: string;
 
-    private consumerToGroup: Map<string, ConsumerDefinition> = new Map();
-    private defaultConsumer: ConsumerDefinition;
-    private receiveRequest: AWS.Request<AWS.SQS.Types.ReceiveMessageResult, AWS.AWSError>;
-    private requestAttemptId: string;
-    private requestAttemptPrefix: string;
+    private consumerToGroup: Map<string, Consumer.Definition> = new Map();
+    private defaultConsumer!: Consumer.Definition;
+    private receiveRequest?: AWS.Request<AWS.SQS.Types.ReceiveMessageResult, AWS.AWSError>;
     private poolScheduled = false;
-    private enchantedRetryTopology: RetryTopologyEnchanted;
 
     private debug: debugModule.IDebugger;
 
-    static defaultOptions: Partial<ConsumerOptions> = {
-        isFifo: true,
+    private options: Consumer.Options;
+
+    static defaultOptions: Consumer.Options = {
         maxMessages: 10,
-        minMessages: 5
+        minMessages: 5,
+        requestAttemptGenerator: ulidPrefixedFactory()
     };
+
+    private requestAttemptId?: string;
 
     static defaultResultHandler: ResultHandler = async (context: ResultContext, error: any) => {
         if (!error) {
@@ -68,24 +40,23 @@ export class Consumer extends EventEmitter {
         await context.reject();
     };
 
-    constructor(private sqs: AWS.SQS, private options: ConsumerOptions) {
+    constructor(private sqs: AWS.SQS,
+                private messageConverter: MessageConverter,
+                readonly queue: Queue.Info,
+                options?: Partial<Consumer.Options>) {
         super();
-        this.options = Object.assign({}, Consumer.defaultOptions, this.options);
+        this.options = Object.assign({}, Consumer.defaultOptions, options);
         this.assertOptionsCorrectness();
 
+        this.debug = debug('consumer:' + this.queue.name);
+
         for (const event of ['rejected', 'consumed', 'retried']) {
-            this.on(event, () => {
+            this.on(event, (message) => {
+                this.debug('Message - ' + event + ' - ' + message.sequenceNumber);
                 this.decrementCounter();
                 this.schedulePool();
             })
         }
-
-        this.requestAttemptPrefix = randomId();
-        this.debug = debug('consumer:' + this.options.queueName);
-    }
-
-    get queueName() {
-        return this.options.queueName
     }
 
     get isStopped() {
@@ -100,22 +71,6 @@ export class Consumer extends EventEmitter {
     }
 
     private assertOptionsCorrectness() {
-        if (!this.options.queueName) {
-            throw new Error('Queue name cannot be empty');
-        }
-
-        const hasFifoSuffix = isFifoQueue(this.options.queueName);
-
-        if (!hasFifoSuffix && this.options.isFifo) {
-            this.options.queueName += '.fifo';
-        }
-
-        if (!this.options.isFifo && hasFifoSuffix) {
-            console.warn(`You have set queue name with ".fifo" suffix (${this.options.queueName}) but explicitly set "isFifo" flag to false. 
-            In that case "isFifo" flag is changed to true. Fix it in order to remove this message.`);
-            this.options.isFifo = true;
-        }
-
         if (this.options.minMessages > this.options.maxMessages) {
             throw new Error(`minMessages (${this.options.minMessages}) cannot be higher than maxMessages (${this.options.maxMessages})`);
         }
@@ -123,14 +78,6 @@ export class Consumer extends EventEmitter {
         if (this.options.minMessages <= 0) {
             throw new Error('minMessages must be greater than 0');
         }
-    }
-
-    get isFifo() {
-        return this.options.isFifo;
-    }
-
-    setEnchantedRetryTopology(retryTopology: RetryTopologyEnchanted) {
-        this.enchantedRetryTopology = retryTopology;
     }
 
     /**
@@ -151,7 +98,7 @@ export class Consumer extends EventEmitter {
      * Sets consumer function for given message group.
      */
     onGroupMessage(groupName: string, consumerFunction: ConsumerFunction, resultHandler?: ResultHandler): this {
-        if (!this.isFifo) {
+        if (this.queue.isStandard) {
             throw new Error('Message groups are not supported by standard queues');
         }
 
@@ -162,33 +109,26 @@ export class Consumer extends EventEmitter {
         return this;
     }
 
-    async start() {
+    start() {
         if (this.isRunning) {
             throw new Error('Already running');
         }
-
         this.isRunning = true;
-        if (!this.queueUrl) {
-            this.queueUrl = (await this.sqs.getQueueUrl({
-                QueueName: this.options.queueName
-            }).promise()).QueueUrl;
-        }
-
         if (!this.defaultConsumer) {
-            throw new Error(`No default consumer for queue "${this.options.queueName}"`);
+            throw new Error(`No default consumer for queue "${this.queue.name}"`);
         }
-
+        this.debug('Starting consumption');
         this.pool();
     }
 
     private pool() {
         if (!this.requestAttemptId) {
-            this.requestAttemptId = this.generateRequestAttemptId();
+            this.requestAttemptId = this.options.requestAttemptGenerator();
         }
 
-        this.debug('Starting messages pool. Attempt id: ' + this.requestAttemptId);
+        this.debug('Starting messages pooling. Attempt id: ' + this.requestAttemptId);
         this.receiveRequest = this.sqs.receiveMessage({
-            QueueUrl: this.queueUrl,
+            QueueUrl: this.queue.url,
             AttributeNames: ['All'],
             MessageAttributeNames: ['.*'],
             MaxNumberOfMessages: this.options.maxMessages - this.ongoingConsumptions,
@@ -199,6 +139,12 @@ export class Consumer extends EventEmitter {
             this.poolScheduled = false;
 
             if (err) {
+                if (err.name === 'RequestAbortedError') {
+                    this.debug('Request aborted');
+                    this.schedulePool();
+                    return;
+                }
+
                 this.debug('Failed to fetch messages: ' + err.message);
                 this.emit('error', err);
                 this.schedulePool();
@@ -211,20 +157,20 @@ export class Consumer extends EventEmitter {
             if (result.Messages && result.Messages.length) {
                 result.Messages
                     .map((m: AWS.SQS.Message) => {
-                        return new Message(m, this.options.queueName, this.queueUrl)
+                        return this.messageConverter.fromRawMessage(m, this.queue);
                     })
                     .forEach(this.consumeMessage, this);
+            } else {
+                this.schedulePool();
             }
-
-            this.schedulePool();
         });
     }
 
-    private generateRequestAttemptId() {
-        return this.requestAttemptPrefix + Date.now();
-    }
-
     private schedulePool() {
+        if (!this.isRunning) {
+            return;
+        }
+
         if (this.poolScheduled) {
             return;
         }
@@ -234,7 +180,7 @@ export class Consumer extends EventEmitter {
                 return;
             }
 
-            if (this.ongoingConsumptions <= this.options.maxMessages - this.options.minMessages) {
+            if (this.ongoingConsumptions <= (this.options.maxMessages - this.options.minMessages)) {
                 this.poolScheduled = true;
                 this.pool();
             }
@@ -244,20 +190,19 @@ export class Consumer extends EventEmitter {
     private async consumeMessage(message: Message) {
         this.ongoingConsumptions++;
 
-        if (message.messageGroupId && this.consumerToGroup.has(message.messageGroupId)) {
+        this.debug('Consuming message: ' + message.sequenceNumber);
+        if (message.groupId && this.consumerToGroup.has(message.groupId)) {
             await this.consumeMessageWithConsumer(
                 message,
-                <ConsumerDefinition>this.consumerToGroup.get(message.messageGroupId)
+                this.consumerToGroup.get(message.groupId) as Consumer.Definition
             );
             return;
         }
-
         await this.consumeMessageWithConsumer(message, this.defaultConsumer);
     }
 
-    private async consumeMessageWithConsumer(message: Message, consumerDefinition: ConsumerDefinition) {
+    private async consumeMessageWithConsumer(message: Message, consumerDefinition: Consumer.Definition) {
         const resultContext = new ResultContext(this.sqs, this, message);
-        resultContext.setEnchantedRetryTopology(this.enchantedRetryTopology);
         try {
             const result = await consumerDefinition.consumerFunction(message);
             await consumerDefinition.resultHandler(resultContext, null, result);
@@ -271,10 +216,37 @@ export class Consumer extends EventEmitter {
             throw new Error('Consumer not running');
         }
 
+        this.debug('Stopping consumption of queue: ' + this.queue.name);
         if (this.receiveRequest) {
             this.receiveRequest.abort();
+            this.receiveRequest = undefined;
         }
 
         this.isRunning = false;
+    }
+}
+
+export namespace Consumer {
+
+    export interface Definition {
+        consumerFunction: ConsumerFunction,
+        resultHandler: ResultHandler
+    }
+
+    export interface Options {
+        /**
+         * Maximum amount of messages to receive within a single ReceiveMessage request
+         */
+        maxMessages: number,
+
+        /**
+         * Amount of messages needed to be consumed before starting pooling for another messages from a queue
+         */
+        minMessages: number,
+
+        /**
+         * A function that returns unique request prefix id
+         */
+        requestAttemptGenerator: () => string
     }
 }
