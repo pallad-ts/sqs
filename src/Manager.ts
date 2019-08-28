@@ -44,7 +44,7 @@ export class Manager {
      * Stops all consumers and wait for them to finish current message consumptions
      */
     stopAllConsumersAndWaitToFinish(): Promise<void> {
-        return new Promise((resolve) => {
+        return new Promise(resolve => {
             this.stopAllConsumers();
 
             const getTotalOngoingConsumptions = () => {

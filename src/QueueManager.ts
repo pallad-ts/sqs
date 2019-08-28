@@ -15,45 +15,45 @@ function toRawAttributes(attributes: Queue.Attributes.Input): SQS.QueueAttribute
     const result: SQS.QueueAttributeMap = {};
 
     if ('delay' in attributes) {
-        result['DelaySeconds'] = attributes.delay + '';
+        result.DelaySeconds = String(attributes.delay);
     }
 
     if ('maxMessageSize' in attributes) {
-        result['MaximumMessageSize'] = attributes.maxMessageSize + '';
+        result.MaximumMessageSize = String(attributes.maxMessageSize);
     }
 
     if ('retentionPeriod' in attributes) {
-        result['MessageRetentionPeriod'] = attributes.retentionPeriod + '';
+        result.MessageRetentionPeriod = String(attributes.retentionPeriod);
     }
 
     if ('receiveMessageWaitTime' in attributes) {
-        result['ReceiveMessageWaitTimeSeconds'] = attributes.receiveMessageWaitTime + '';
+        result.ReceiveMessageWaitTimeSeconds = String(attributes.receiveMessageWaitTime);
     }
 
     if ('visibilityTimeout' in attributes) {
-        result['VisibilityTimeout'] = attributes.visibilityTimeout + '';
+        result.VisibilityTimeout = String(attributes.visibilityTimeout);
     }
 
     if (attributes.isFifo) {
-        result['FifoQueue'] = 'true';
+        result.FifoQueue = 'true';
     }
 
     if ('isContentBasedDeduplication' in attributes) {
-        result['ContentBasedDeduplication'] = attributes.isContentBasedDeduplication ? 'true' : 'false';
+        result.ContentBasedDeduplication = attributes.isContentBasedDeduplication ? 'true' : 'false';
     }
     return result;
 }
 
 function fromRawToAttributes(attributes: SQS.QueueAttributeMap): Queue.Attributes {
     return {
-        delay: parseFloat(attributes['DelaySeconds']),
-        isContentBasedDeduplication: attributes['ContentBasedDeduplication'] === 'true',
-        isFifo: attributes['FifoQueue'] === 'true',
-        maxMessageSize: parseFloat(attributes['MaximumMessageSize']),
-        receiveMessageWaitTime: parseFloat(attributes['ReceiveMessageWaitTimeSeconds']),
-        retentionPeriod: parseFloat(attributes['MessageRetentionPeriod']),
-        visibilityTimeout: parseFloat(attributes['VisibilityTimeout']),
-        arn: attributes['QueueArn']
+        delay: parseFloat(attributes.DelaySeconds),
+        isContentBasedDeduplication: attributes.ContentBasedDeduplication === 'true',
+        isFifo: attributes.FifoQueue === 'true',
+        maxMessageSize: parseFloat(attributes.MaximumMessageSize),
+        receiveMessageWaitTime: parseFloat(attributes.ReceiveMessageWaitTimeSeconds),
+        retentionPeriod: parseFloat(attributes.MessageRetentionPeriod),
+        visibilityTimeout: parseFloat(attributes.VisibilityTimeout),
+        arn: attributes.QueueArn
     };
 }
 

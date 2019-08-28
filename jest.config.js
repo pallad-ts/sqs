@@ -1,3 +1,8 @@
 module.exports = {
-    projects: ['<rootDir>/src', '<rootDir>/integration_tests'],
+    preset: '@pallad/scripts',
+    roots: ["<rootDir>"],
+    projects: [
+        '<rootDir>/test',
+        '<rootDir>/integration_tests'
+    ],
 };

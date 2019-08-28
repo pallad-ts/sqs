@@ -26,12 +26,12 @@ export class Message<TBody = string, TAttributes = Message.Attributes> {
 
     get sequenceNumber(): string | undefined {
         if (this.raw.Attributes) {
-            return this.raw.Attributes['SequenceNumber'] as string;
+            return this.raw.Attributes.SequenceNumber as string;
         }
     }
 
     toInput(delay?: number): Message.Input {
-        let attributes: { [key: string]: Message.Input.MessageAttribute } | undefined = undefined;
+        let attributes: { [key: string]: Message.Input.MessageAttribute } | undefined;
 
         if (this.raw.MessageAttributes) {
             attributes = {};
@@ -53,7 +53,7 @@ export class Message<TBody = string, TAttributes = Message.Attributes> {
 }
 
 export namespace Message {
-    export type Attributes = { [key: string]: any };
+    export interface Attributes { [key: string]: any }
 
     export interface Input<TBody = any> {
         delay?: number;
@@ -82,6 +82,6 @@ export namespace Message {
 
     export namespace Input {
         export type MessageAttributeValue = string | number | Buffer | TypedArray | MessageAttribute;
-        export type MessageAttribute = { type: string, value: any };
+        export interface MessageAttribute { type: string, value: any }
     }
 }

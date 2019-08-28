@@ -4,7 +4,7 @@ import {MessageConverter, RawBatchMessage} from "./MessageConverter";
 import {Queue} from "./Queue";
 import * as is from 'predicates';
 import * as debugModule from "debug";
-import debug from './debug';
+import {debugFn} from './debugFn';
 
 const assertGroupId = is.assert(
     is.prop('groupId', is.all(is.string, is.notBlank)),
@@ -30,7 +30,7 @@ export class Publisher<TBody = any, TAttributes = Message.Attributes> {
     private debug: debugModule.IDebugger;
 
     constructor(private sqs: SQS, private messageConverter: MessageConverter, private queue: Queue.Info) {
-        this.debug = debug('publisher:' + this.queue.name);
+        this.debug = debugFn('publisher:' + this.queue.name);
     }
 
     private validateMessage(message: Message.Input) {
@@ -61,7 +61,7 @@ export class Publisher<TBody = any, TAttributes = Message.Attributes> {
         ).promise()
     }
 
-    async publishMany(messages: (Message.Input | Message.BatchInput)[]) {
+    async publishMany(messages: Array<Message.Input | Message.BatchInput>) {
         const result: SQS.SendMessageBatchResult = {
             Failed: [],
             Successful: []
@@ -70,7 +70,7 @@ export class Publisher<TBody = any, TAttributes = Message.Attributes> {
         messages.forEach(this.validateMessage, this);
         for (let i = 0; i < messages.length; i += 10) {
             const group = messages.slice(i, 10);
-            this.debug('Publishing messages in batch: amount - ' + group.length);
+            this.debug(`Publishing messages in batch: amount - ${group.length}`);
             const groupResult = await this.sqs.sendMessageBatch({
                 QueueUrl: this.queue.url,
                 Entries: group.map(

@@ -43,7 +43,7 @@ export class MessageConverter {
     }
 
     private messageAttributesFromRawMessage<TAttributes extends Message.Attributes>(raw: SQS.Message): TAttributes {
-        const result: TAttributes = {} as TAttributes;
+        const result: any = {};
         if (raw.MessageAttributes) {
             for (const [key, value] of Object.entries(raw.MessageAttributes)) {
                 result[key] = this.findDataType(value.DataType)

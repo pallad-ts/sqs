@@ -1,4 +1,4 @@
-import {DataType} from "../DataType";
+import {DataType} from "@src/DataType";
 
 describe('DataType', () => {
     describe('String', () => {
@@ -8,7 +8,7 @@ describe('DataType', () => {
         it.each<[any, string]>([
             ['regular string', 'regular string'],
             [10, '10'],
-            [date, date + '']
+            [date, String(date)]
         ])('converting value to raw: %p', (source, expected) => {
             expect(type.toRaw(source))
                 .toEqual({
@@ -203,12 +203,10 @@ describe('DataType', () => {
     ])('name needs to be prefixed with "String.", "Binary." or "Number.": %p', (type, isValid) => {
         const message = 'data type has to start with "String.", "Number." or "Binary."';
 
-        function func(x: any): any {
-
-        }
+        const func = (x: any) => x;
 
         const e = expect(() => {
-            new DataType(type, func, func, x => true);
+            return new DataType(type, func, func, x => true);
         });
         if (isValid) {
             e.not.toThrowError(message);

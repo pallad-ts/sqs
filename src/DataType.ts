@@ -55,9 +55,8 @@ export class DataType<TSource, TRaw extends DataType.RawType = DataType.RawType>
     fromRaw(value: SQS.MessageAttributeValue) {
         if (this.isBinaryType) {
             return this.deserializer(value.BinaryValue as TRaw);
-        } else {
-            return this.deserializer(value.StringValue as TRaw);
         }
+        return this.deserializer(value.StringValue as TRaw);
     }
 }
 
@@ -86,21 +85,20 @@ export namespace DataType {
     export namespace Common {
         export const STRING = new DataType<string, string>(
             'String',
-            x => x + '',
+            String,
             x => x,
             is.string
         );
 
         export const NUMBER = new DataType<number, string>(
             'Number',
-            x => x + '',
-            x => parseFloat(x),
+            String,
+            parseFloat,
             is.number
         );
 
         export const BINARY = new DataType<Buffer | TypedArray | string, Buffer>(
-            'Binary',
-            (data) => {
+            'Binary', data => {
                 if (Buffer.isBuffer(data)) {
                     return data;
                 }

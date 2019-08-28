@@ -1,6 +1,5 @@
 module.exports = {
     preset: '@pallad/scripts',
-    runner: './serialRunner.js',
     rootDir: ".",
     roots: ['<rootDir>'],
     globals: {

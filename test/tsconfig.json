@@ -2,7 +2,8 @@
     "extends": "@pallad/scripts/tsconfig-node.dist.json",
     "compilerOptions": {
         "noEmit": true,
-        "baseUrl": "./src",
+        "baseUrl": "../src",
+        "noImplicitAny": false,
         "paths": {
             "@src/*": [
                 "*"
@@ -11,7 +12,7 @@
     },
     "references": [
         {
-            "path": "./src"
+            "path": "../src"
         }
     ]
 }

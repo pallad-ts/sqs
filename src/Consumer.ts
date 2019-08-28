@@ -2,7 +2,7 @@ import * as AWS from 'aws-sdk';
 import {EventEmitter} from 'events';
 import {Message} from "./Message";
 import {ResultContext, ResultHandler} from "./ResultContext";
-import debug from './debug';
+import {debugFn} from './debugFn';
 import * as debugModule from 'debug';
 import {Queue} from "./Queue";
 import {MessageConverter} from "./MessageConverter";
@@ -45,14 +45,17 @@ export class Consumer extends EventEmitter {
                 readonly queue: Queue.Info,
                 options?: Partial<Consumer.Options>) {
         super();
-        this.options = Object.assign({}, Consumer.defaultOptions, options);
+        this.options = {
+            ...Consumer.defaultOptions,
+            ...options
+        };
         this.assertOptionsCorrectness();
 
-        this.debug = debug('consumer:' + this.queue.name);
+        this.debug = debugFn('consumer:' + this.queue.name);
 
         for (const event of ['rejected', 'consumed', 'retried']) {
-            this.on(event, (message) => {
-                this.debug('Message - ' + event + ' - ' + message.sequenceNumber);
+            this.on(event, message => {
+                this.debug(`Message - ${event} - ${message.sequenceNumber}`);
                 this.decrementCounter();
                 this.schedulePool();
             })
@@ -82,9 +85,6 @@ export class Consumer extends EventEmitter {
 
     /**
      * Sets default consumer function that gets called when new message appears and there is no other consumer assigned to message group.
-     *
-     * @param {ConsumerFunction} consumerFunction
-     * @param {ResultHandler} resultHandler
      */
     onMessage(consumerFunction: ConsumerFunction, resultHandler?: ResultHandler): this {
         this.defaultConsumer = {
@@ -151,7 +151,7 @@ export class Consumer extends EventEmitter {
                 return;
             }
 
-            this.debug('Messages found: ' + ((result.Messages && result.Messages.length) || 0));
+            this.debug(`Messages found: ${(result.Messages && result.Messages.length) || 0}`);
 
             this.requestAttemptId = undefined;
             if (result.Messages && result.Messages.length) {
@@ -190,7 +190,7 @@ export class Consumer extends EventEmitter {
     private async consumeMessage(message: Message) {
         this.ongoingConsumptions++;
 
-        this.debug('Consuming message: ' + message.sequenceNumber);
+        this.debug(`Consuming message: ${message.sequenceNumber}`);
         if (message.groupId && this.consumerToGroup.has(message.groupId)) {
             await this.consumeMessageWithConsumer(
                 message,
@@ -205,7 +205,7 @@ export class Consumer extends EventEmitter {
         const resultContext = new ResultContext(this.sqs, this, message);
         try {
             const result = await consumerDefinition.consumerFunction(message);
-            await consumerDefinition.resultHandler(resultContext, null, result);
+            await consumerDefinition.resultHandler(resultContext, undefined, result);
         } catch (e) {
             await consumerDefinition.resultHandler(resultContext, e);
         }

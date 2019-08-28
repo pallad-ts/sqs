@@ -1,8 +1,8 @@
 import {manager} from './config';
-import {Publisher} from "../src/Publisher";
+import {Publisher} from "@src/Publisher";
 import * as fixtures from '../fixtures';
 import {String} from "aws-sdk/clients/sqs";
-import {Message} from "../src/Message";
+import {Message} from "@src/Message";
 import {ulid} from "ulid";
 
 function createConsumerFunc() {

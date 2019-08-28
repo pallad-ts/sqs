@@ -1,5 +1,5 @@
-import * as fixtures from '../../fixtures';
-import {Queue} from "../Queue";
+import * as fixtures from '../fixtures';
+import {Queue} from "@src/Queue";
 
 describe('Queue', () => {
     const QUEUE_STANDARD = fixtures.queue.standard;
@@ -19,7 +19,7 @@ describe('Queue', () => {
 
     it('ensuring queue name to be fifo name', () => {
         expect(Queue.ensureFifoName('standard'))
-            .toEqual('standard.fifo')
+            .toEqual('standard.fifo');
 
         expect(Queue.ensureFifoName('fifo.fifo'))
             .toEqual('fifo.fifo');

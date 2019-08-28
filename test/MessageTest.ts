@@ -1,5 +1,5 @@
-import * as fixtures from '../../fixtures';
-import {Message} from "../Message";
+import * as fixtures from '../fixtures';
+import {Message} from "@src/Message";
 import {SQS} from "aws-sdk";
 
 describe('Message', () => {
