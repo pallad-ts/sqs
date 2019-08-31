@@ -1,6 +1,6 @@
 {
     "name": "alpha-sqs",
-    "version": "0.1.1",
+    "version": "0.1.2",
     "description": "AWS SQS Consumer with retry support",
     "main": "compiled/index.js",
     "types": "compiled/index.d.ts",
@@ -25,6 +25,9 @@
     "bugs": {
         "url": "https://github.com/wookieb/alpha-sqs-consumer/issues"
     },
+    "files": [
+        "compiled"
+    ],
     "homepage": "https://github.com/wookieb/alpha-sqs-consumer#readme",
     "peerDependencies": {
         "aws-sdk": "^2.88.0"
