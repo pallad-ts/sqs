@@ -50,7 +50,7 @@ export class Publisher<TMessage extends Message<any, any>> {
         return this.messageConverter.toRawMessage(input);
     }
 
-    publish(input: Message.Input) {
+    publish(input: Message.Input<TMessage['body']>) {
         this.validateMessage(input);
         this.debug('Publishing message');
         return this.sqs.sendMessage(
