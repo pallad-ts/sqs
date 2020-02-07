@@ -3,9 +3,10 @@ import {ResultHandler} from "./ResultContext";
 import {QueueManager} from "./QueueManager";
 import {Publisher} from "./Publisher";
 import {MessageConverter} from "./MessageConverter";
+import {Message} from "./Message";
 
 export class Manager {
-    private consumers: Set<Consumer> = new Set();
+    private consumers: Set<Consumer<any>> = new Set();
 
     constructor(readonly queueManager: QueueManager,
                 readonly messageConverter: MessageConverter) {
@@ -17,10 +18,12 @@ export class Manager {
         return new Publisher(this.queueManager.sqs, this.messageConverter, queueInfo);
     }
 
-    async consume(queueName: string, func: ConsumerFunction, options: Manager.ConsumerOptions = {}): Promise<Consumer> {
+    async consume<TMessage extends Message<any, any>>(queueName: string,
+                                                      func: ConsumerFunction<TMessage>,
+                                                      options: Manager.ConsumerOptions<TMessage> = {}): Promise<Consumer<TMessage>> {
         const queueInfo = await this.queueManager.getInfo(queueName);
         const {resultHandler, autoStart = true, ...consumerOptions} = options;
-        const consumer = new Consumer(this.queueManager.sqs, this.messageConverter, queueInfo, consumerOptions);
+        const consumer = new Consumer<TMessage>(this.queueManager.sqs, this.messageConverter, queueInfo, consumerOptions);
         consumer.onMessage(func, resultHandler);
         this.consumers.add(consumer);
         if (autoStart) {
@@ -70,8 +73,8 @@ export class Manager {
 }
 
 export namespace Manager {
-    export interface ConsumerOptions extends Partial<Consumer.Options> {
-        resultHandler?: ResultHandler,
+    export interface ConsumerOptions<TMessage extends Message<any, any>> extends Partial<Consumer.Options> {
+        resultHandler?: ResultHandler<TMessage>,
         autoStart?: boolean
     }
 }

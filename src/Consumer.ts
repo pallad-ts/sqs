@@ -8,15 +8,15 @@ import {Queue} from "./Queue";
 import {MessageConverter} from "./MessageConverter";
 import {ulidPrefixedFactory} from "./requestAttemptGenerator";
 
-export type ConsumerFunction = (message: Message) => any;
+export type ConsumerFunction<TMessage extends Message<any, any>> = (message: TMessage) => any;
 
-export class Consumer extends EventEmitter {
+export class Consumer<TMessage extends Message<any, any>> extends EventEmitter {
 
     public ongoingConsumptions = 0;
     public isRunning = false;
 
-    private consumerToGroup: Map<string, Consumer.Definition> = new Map();
-    private defaultConsumer!: Consumer.Definition;
+    private consumerToGroup: Map<string, Consumer.Definition<TMessage>> = new Map();
+    private defaultConsumer!: Consumer.Definition<TMessage>;
     private receiveRequest?: AWS.Request<AWS.SQS.Types.ReceiveMessageResult, AWS.AWSError>;
     private poolScheduled = false;
 
@@ -32,7 +32,7 @@ export class Consumer extends EventEmitter {
 
     private requestAttemptId?: string;
 
-    static defaultResultHandler: ResultHandler = async (context: ResultContext, error: any) => {
+    static defaultResultHandler: ResultHandler<any> = async (context: ResultContext<any>, error: any) => {
         if (!error) {
             await context.ack();
             return;
@@ -86,7 +86,7 @@ export class Consumer extends EventEmitter {
     /**
      * Sets default consumer function that gets called when new message appears and there is no other consumer assigned to message group.
      */
-    onMessage(consumerFunction: ConsumerFunction, resultHandler?: ResultHandler): this {
+    onMessage(consumerFunction: ConsumerFunction<TMessage>, resultHandler?: ResultHandler<TMessage>): this {
         this.defaultConsumer = {
             consumerFunction,
             resultHandler: resultHandler || Consumer.defaultResultHandler
@@ -97,7 +97,7 @@ export class Consumer extends EventEmitter {
     /**
      * Sets consumer function for given message group.
      */
-    onGroupMessage(groupName: string, consumerFunction: ConsumerFunction, resultHandler?: ResultHandler): this {
+    onGroupMessage(groupName: string, consumerFunction: ConsumerFunction<TMessage>, resultHandler?: ResultHandler<TMessage>): this {
         if (this.queue.isStandard) {
             throw new Error('Message groups are not supported by standard queues');
         }
@@ -157,7 +157,7 @@ export class Consumer extends EventEmitter {
             if (result.Messages && result.Messages.length) {
                 result.Messages
                     .map((m: AWS.SQS.Message) => {
-                        return this.messageConverter.fromRawMessage(m, this.queue);
+                        return this.messageConverter.fromRawMessage(m, this.queue) as TMessage;
                     })
                     .forEach(this.consumeMessage, this);
             } else {
@@ -187,21 +187,21 @@ export class Consumer extends EventEmitter {
         });
     }
 
-    private async consumeMessage(message: Message) {
+    private async consumeMessage(message: TMessage) {
         this.ongoingConsumptions++;
 
         this.debug(`Consuming message: ${message.sequenceNumber}`);
         if (message.groupId && this.consumerToGroup.has(message.groupId)) {
             await this.consumeMessageWithConsumer(
                 message,
-                this.consumerToGroup.get(message.groupId) as Consumer.Definition
+                this.consumerToGroup.get(message.groupId) as Consumer.Definition<TMessage>
             );
             return;
         }
         await this.consumeMessageWithConsumer(message, this.defaultConsumer);
     }
 
-    private async consumeMessageWithConsumer(message: Message, consumerDefinition: Consumer.Definition) {
+    private async consumeMessageWithConsumer(message: TMessage, consumerDefinition: Consumer.Definition<TMessage>) {
         const resultContext = new ResultContext(this.sqs, this, message);
         try {
             const result = await consumerDefinition.consumerFunction(message);
@@ -228,9 +228,9 @@ export class Consumer extends EventEmitter {
 
 export namespace Consumer {
 
-    export interface Definition {
-        consumerFunction: ConsumerFunction,
-        resultHandler: ResultHandler
+    export interface Definition<TMessage extends Message<any, any>> {
+        consumerFunction: ConsumerFunction<TMessage>;
+        resultHandler: ResultHandler<TMessage>;
     }
 
     export interface Options {

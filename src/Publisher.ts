@@ -26,7 +26,7 @@ const assertDeduplicationIdNotDefined = is.assert(
     'Messages publish to standard queue cannot have "messageDeduplicationId" defined'
 );
 
-export class Publisher<TBody = any, TAttributes = Message.Attributes> {
+export class Publisher<TMessage extends Message<any, any>> {
     private debug: debugModule.IDebugger;
 
     constructor(private sqs: SQS, private messageConverter: MessageConverter, private queue: Queue.Info) {
@@ -46,7 +46,7 @@ export class Publisher<TBody = any, TAttributes = Message.Attributes> {
         }
     }
 
-    protected convertMessage(input: Message.Input | Message.BatchInput) {
+    protected convertMessage(input: Message.Input<TMessage['body']> | Message.BatchInput<TMessage['body']>) {
         return this.messageConverter.toRawMessage(input);
     }
 
@@ -61,7 +61,7 @@ export class Publisher<TBody = any, TAttributes = Message.Attributes> {
         ).promise()
     }
 
-    async publishMany(messages: Array<Message.Input | Message.BatchInput>) {
+    async publishMany(messages: Array<Message.Input<TMessage['body']> | Message.BatchInput<TMessage['body']>>) {
         const result: SQS.SendMessageBatchResult = {
             Failed: [],
             Successful: []
