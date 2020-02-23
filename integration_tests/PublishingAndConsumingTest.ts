@@ -4,6 +4,7 @@ import * as fixtures from '../fixtures';
 import {String} from "aws-sdk/clients/sqs";
 import {Message} from "@src/Message";
 import {ulid} from "ulid";
+import {ResultContext, ResultHandler} from "@src/ResultContext";
 
 function createConsumerFunc() {
     let resolve: (data: any) => void;
@@ -20,24 +21,24 @@ function createConsumerFunc() {
 }
 
 describe('Publishing', () => {
+    jest.setTimeout(30000);
+
+    afterAll(() => {
+
+    })
     describe('standard queue', () => {
-        const QUEUE = 'alpha_publishing_standard';
+        const QUEUE = `alpha_publishing_standard`;
         const MESSAGE = fixtures.message.regular;
 
-        let publisher: Publisher;
+        let publisher: Publisher<any>;
 
         beforeAll(async () => {
             await manager.queueManager.assert(QUEUE);
             publisher = await manager.createPublisher(QUEUE);
-
         });
 
         afterEach(() => {
             return manager.stopAllConsumers();
-        });
-
-        afterAll(async () => {
-            await manager.queueManager.delete(QUEUE);
         });
 
         it('publishing', async () => {
@@ -61,11 +62,13 @@ describe('Publishing', () => {
         });
 
         it('consuming per message group is not supported by standard queue consumer', async () => {
+            // tslint:disable-next-line:no-empty
             const consumer = await manager.consume(QUEUE, () => {
 
             });
 
             expect(() => {
+                // tslint:disable-next-line:no-empty
                 consumer.onGroupMessage('some-group', () => {
 
                 })
@@ -75,10 +78,10 @@ describe('Publishing', () => {
     });
 
     describe('fifo queue without content deduplication', () => {
-        const QUEUE = 'alpha_publishing_fifo_without_dedup.fifo';
+        const QUEUE = `alpha_publishing_fifo_without_dedup.fifo`;
         const MESSAGE = fixtures.message.fifoDedup;
 
-        let publisher: Publisher;
+        let publisher: Publisher<any>;
 
         beforeAll(async () => {
             await manager.queueManager.assert(QUEUE);
@@ -87,10 +90,6 @@ describe('Publishing', () => {
 
         afterEach(async () => {
             await manager.stopAllConsumersAndWaitToFinish();
-        });
-
-        afterAll(async () => {
-            await manager.queueManager.delete(QUEUE);
         });
 
         it('publishing', async () => {
@@ -158,5 +157,47 @@ describe('Publishing', () => {
                     groupId: GROUP_2
                 });
         }, 20000);
+    });
+
+    describe('consuming lot of messages at the same time', () => {
+        const QUEUE = `alpha_publishing_many_regular`;
+        const MESSAGE = fixtures.message.regular;
+
+        let publisher: Publisher<any>;
+        beforeAll(async () => {
+            await manager.queueManager.assert(QUEUE);
+            publisher = await manager.createPublisher(QUEUE);
+        });
+
+        it('40', async () => {
+            const inputs = Array(40).fill(MESSAGE.toInput());
+
+            let isReady;
+            const promise = new Promise(resolve => isReady = resolve);
+            await publisher.publishMany(inputs);
+            const contexts: Array<ResultContext<any>> = [];
+            const consumer = await manager.consume(QUEUE, message => {
+                return true;
+            }, {
+                maxMessages: 40,
+                minMessages: 5,
+                autoStart: false,
+                resultHandler(context) {
+                    contexts.push(context);
+                    if (contexts.length >= 40) {
+                        isReady();
+                    }
+                    return Promise.resolve(undefined);
+                }
+            });
+            await consumer.start();
+            await promise;
+
+            let i = 0;
+            for (const context of contexts) {
+                await context.ack()
+            }
+            await manager.stopAllConsumersAndWaitToFinish();
+        });
     });
 });

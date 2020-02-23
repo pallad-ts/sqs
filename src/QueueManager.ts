@@ -1,6 +1,7 @@
 import {SQS, AWSError} from "aws-sdk";
 import {Queue} from "./Queue";
 import * as is from 'predicates';
+import {Agent} from 'https';
 
 const assertQueueName = is.assert(
     is.all(
@@ -65,9 +66,22 @@ export class QueueManager {
 
     }
 
+    static create() {
+        return new QueueManager(
+            new SQS({
+                httpOptions: {
+                    agent: new Agent({
+                        keepAlive: true,
+                        keepAliveMsecs: 20000
+                    })
+                }
+            })
+        )
+    }
+
     async getInfo(name: string, accountId?: string): Promise<Queue.Info> {
         assertQueueName(name);
-        const key = `name:${name};accountId:${accountId ? accountId : ''}`;
+        const key = this.getQueueCacheKey(name, accountId);
 
         if (this.cachedQueueInfo.has(key)) {
             return this.cachedQueueInfo.get(key) as Queue.Info;
@@ -79,13 +93,19 @@ export class QueueManager {
 
         const promise = this.getInfoInternal(name, accountId);
         this.cachedPromises.set(key, promise);
-        promise.catch(e => this.cachedPromises.delete(key));
+        promise.catch(e => {
+            this.cachedPromises.delete(key)
+        });
 
         const result = await promise;
         this.cachedPromises.delete(key);
         this.cachedQueueInfo.set(key, result);
 
         return result;
+    }
+
+    private getQueueCacheKey(name: string, accountId?: string) {
+        return `name:${name};accountId:${accountId ? accountId : ''}`;
     }
 
     async create(name: string, options?: Queue.Attributes.Input): Promise<string> {
@@ -97,7 +117,14 @@ export class QueueManager {
             })
         }).promise();
 
+        this.clearCacheForQueue(name);
         return result.QueueUrl as string;
+    }
+
+    private clearCacheForQueue(name: string) {
+        const cacheKey = this.getQueueCacheKey(name);
+        this.cachedPromises.delete(cacheKey);
+        this.cachedQueueInfo.delete(cacheKey);
     }
 
     /**

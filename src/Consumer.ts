@@ -126,12 +126,16 @@ export class Consumer<TMessage extends Message<any, any>> extends EventEmitter {
             this.requestAttemptId = this.options.requestAttemptGenerator();
         }
 
-        this.debug('Starting messages pooling. Attempt id: ' + this.requestAttemptId);
+        let messagesToFetch = this.options.maxMessages - this.ongoingConsumptions;
+        if (messagesToFetch > 10) {
+            messagesToFetch = 10;
+        }
+        this.debug(`Starting messages pooling (Amount of message ${messagesToFetch}). Attempt id: ${this.requestAttemptId}`);
         this.receiveRequest = this.sqs.receiveMessage({
             QueueUrl: this.queue.url,
             AttributeNames: ['All'],
             MessageAttributeNames: ['.*'],
-            MaxNumberOfMessages: this.options.maxMessages - this.ongoingConsumptions,
+            MaxNumberOfMessages: messagesToFetch,
             WaitTimeSeconds: 20,
             ReceiveRequestAttemptId: this.requestAttemptId
         }, (err: AWS.AWSError, result: AWS.SQS.Types.ReceiveMessageResult) => {
@@ -160,9 +164,8 @@ export class Consumer<TMessage extends Message<any, any>> extends EventEmitter {
                         return this.messageConverter.fromRawMessage(m, this.queue) as TMessage;
                     })
                     .forEach(this.consumeMessage, this);
-            } else {
-                this.schedulePool();
             }
+            this.schedulePool();
         });
     }
 

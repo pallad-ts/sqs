@@ -4,6 +4,7 @@ import {QueueManager} from "./QueueManager";
 import {Publisher} from "./Publisher";
 import {MessageConverter} from "./MessageConverter";
 import {Message} from "./Message";
+import {globalAgent, Agent} from 'https';
 
 export class Manager {
     private consumers: Set<Consumer<any>> = new Set();
@@ -63,6 +64,10 @@ export class Manager {
                 for (const consumer of this.consumers) {
                     consumer.once('all-consumed', () => {
                         if (getTotalOngoingConsumptions() === 0) {
+                            const agent = this.queueManager.sqs.config.httpOptions?.agent;
+                            if (agent && Object.is(agent, globalAgent)) {
+                                agent.destroy();
+                            }
                             resolve();
                         }
                     });

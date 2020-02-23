@@ -5,6 +5,7 @@ import {Queue} from "./Queue";
 import * as is from 'predicates';
 import * as debugModule from "debug";
 import {debugFn} from './debugFn';
+import {ulid} from "ulid";
 
 const assertGroupId = is.assert(
     is.prop('groupId', is.all(is.string, is.notBlank)),
@@ -69,17 +70,23 @@ export class Publisher<TMessage extends Message<any, any>> {
 
         messages.forEach(this.validateMessage, this);
         for (let i = 0; i < messages.length; i += 10) {
-            const group = messages.slice(i, 10);
+            const group = messages.slice(i, i + 10);
             this.debug(`Publishing messages in batch: amount - ${group.length}`);
+            const entries = group.map(
+                message => {
+                    const raw = this.convertMessage(
+                        Message.isBatchInput(message) ? message : Message.Input.toBatchInput(message)
+                    ) as RawBatchMessage;
+
+                    if (!raw.Id) {
+                        raw.Id = ulid();
+                    }
+                    return raw;
+                }
+            );
             const groupResult = await this.sqs.sendMessageBatch({
                 QueueUrl: this.queue.url,
-                Entries: group.map(
-                    message => {
-                        return this.convertMessage(
-                            Message.isBatchInput(message) ? message : Message.Input.toBatchInput(message)
-                        ) as RawBatchMessage;
-                    }
-                )
+                Entries: entries
             }, undefined).promise();
             result.Successful.push(...groupResult.Successful);
             result.Failed.push(...groupResult.Failed)
