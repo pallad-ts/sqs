@@ -1,4 +1,0 @@
-{
-  "extends": "@pallad/scripts/tslint.dist.json"
-
-}

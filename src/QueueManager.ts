@@ -4,195 +4,195 @@ import * as is from 'predicates';
 import {Agent} from 'https';
 
 const assertQueueName = is.assert(
-    is.all(
-        is.matches(/^[a-z0-9\-_]+(\.fifo)?$/i),
-        (x: string) => x.length < 80,
-    ),
-    'Queue name cannot be blank, must contains only alphanumeric characters, hyphens and underscores and has maximum length of 80 characters'
+	is.all(
+		is.matches(/^[a-z0-9\-_]+(\.fifo)?$/i),
+		(x: string) => x.length < 80,
+	),
+	'Queue name cannot be blank, must contains only alphanumeric characters, hyphens and underscores and has maximum length of 80 characters'
 );
 
 // TODO add "Policy" and "RedrivePolicy", "KmsMasterKeyId", "KmsDataKeyReusePeriodSeconds"
 function toRawAttributes(attributes: Queue.Attributes.Input): SQS.QueueAttributeMap {
-    const result: SQS.QueueAttributeMap = {};
+	const result: SQS.QueueAttributeMap = {};
 
-    if ('delay' in attributes) {
-        result.DelaySeconds = String(attributes.delay);
-    }
+	if ('delay' in attributes) {
+		result.DelaySeconds = String(attributes.delay);
+	}
 
-    if ('maxMessageSize' in attributes) {
-        result.MaximumMessageSize = String(attributes.maxMessageSize);
-    }
+	if ('maxMessageSize' in attributes) {
+		result.MaximumMessageSize = String(attributes.maxMessageSize);
+	}
 
-    if ('retentionPeriod' in attributes) {
-        result.MessageRetentionPeriod = String(attributes.retentionPeriod);
-    }
+	if ('retentionPeriod' in attributes) {
+		result.MessageRetentionPeriod = String(attributes.retentionPeriod);
+	}
 
-    if ('receiveMessageWaitTime' in attributes) {
-        result.ReceiveMessageWaitTimeSeconds = String(attributes.receiveMessageWaitTime);
-    }
+	if ('receiveMessageWaitTime' in attributes) {
+		result.ReceiveMessageWaitTimeSeconds = String(attributes.receiveMessageWaitTime);
+	}
 
-    if ('visibilityTimeout' in attributes) {
-        result.VisibilityTimeout = String(attributes.visibilityTimeout);
-    }
+	if ('visibilityTimeout' in attributes) {
+		result.VisibilityTimeout = String(attributes.visibilityTimeout);
+	}
 
-    if (attributes.isFifo) {
-        result.FifoQueue = 'true';
-    }
+	if (attributes.isFifo) {
+		result.FifoQueue = 'true';
+	}
 
-    if ('isContentBasedDeduplication' in attributes) {
-        result.ContentBasedDeduplication = attributes.isContentBasedDeduplication ? 'true' : 'false';
-    }
-    return result;
+	if ('isContentBasedDeduplication' in attributes) {
+		result.ContentBasedDeduplication = attributes.isContentBasedDeduplication ? 'true' : 'false';
+	}
+	return result;
 }
 
 function fromRawToAttributes(attributes: SQS.QueueAttributeMap): Queue.Attributes {
-    return {
-        delay: parseFloat(attributes.DelaySeconds),
-        isContentBasedDeduplication: attributes.ContentBasedDeduplication === 'true',
-        isFifo: attributes.FifoQueue === 'true',
-        maxMessageSize: parseFloat(attributes.MaximumMessageSize),
-        receiveMessageWaitTime: parseFloat(attributes.ReceiveMessageWaitTimeSeconds),
-        retentionPeriod: parseFloat(attributes.MessageRetentionPeriod),
-        visibilityTimeout: parseFloat(attributes.VisibilityTimeout),
-        arn: attributes.QueueArn
-    };
+	return {
+		delay: parseFloat(attributes.DelaySeconds),
+		isContentBasedDeduplication: attributes.ContentBasedDeduplication === 'true',
+		isFifo: attributes.FifoQueue === 'true',
+		maxMessageSize: parseFloat(attributes.MaximumMessageSize),
+		receiveMessageWaitTime: parseFloat(attributes.ReceiveMessageWaitTimeSeconds),
+		retentionPeriod: parseFloat(attributes.MessageRetentionPeriod),
+		visibilityTimeout: parseFloat(attributes.VisibilityTimeout),
+		arn: attributes.QueueArn
+	};
 }
 
 export class QueueManager {
-    private cachedQueueInfo: Map<string, Queue.Info> = new Map();
-    private cachedPromises: Map<string, Promise<Queue.Info>> = new Map();
+	private cachedQueueInfo: Map<string, Queue.Info> = new Map();
+	private cachedPromises: Map<string, Promise<Queue.Info>> = new Map();
 
-    constructor(readonly sqs: SQS) {
+	constructor(readonly sqs: SQS) {
 
-    }
+	}
 
-    static create() {
-        return new QueueManager(
-            new SQS({
-                httpOptions: {
-                    agent: new Agent({
-                        keepAlive: true,
-                        keepAliveMsecs: 20000
-                    })
-                }
-            })
-        )
-    }
+	static create() {
+		return new QueueManager(
+			new SQS({
+				httpOptions: {
+					agent: new Agent({
+						keepAlive: true,
+						keepAliveMsecs: 20000
+					})
+				}
+			})
+		)
+	}
 
-    async getInfo(name: string, accountId?: string): Promise<Queue.Info> {
-        assertQueueName(name);
-        const key = this.getQueueCacheKey(name, accountId);
+	async getInfo(name: string, accountId?: string): Promise<Queue.Info> {
+		assertQueueName(name);
+		const key = this.getQueueCacheKey(name, accountId);
 
-        if (this.cachedQueueInfo.has(key)) {
-            return this.cachedQueueInfo.get(key) as Queue.Info;
-        }
+		if (this.cachedQueueInfo.has(key)) {
+			return this.cachedQueueInfo.get(key) as Queue.Info;
+		}
 
-        if (this.cachedPromises.has(key)) {
-            return this.cachedPromises.get(key) as Promise<Queue.Info>;
-        }
+		if (this.cachedPromises.has(key)) {
+			return this.cachedPromises.get(key) as Promise<Queue.Info>;
+		}
 
-        const promise = this.getInfoInternal(name, accountId);
-        this.cachedPromises.set(key, promise);
-        promise.catch(e => {
-            this.cachedPromises.delete(key)
-        });
+		const promise = this.getInfoInternal(name, accountId);
+		this.cachedPromises.set(key, promise);
+		promise.catch(e => {
+			this.cachedPromises.delete(key)
+		});
 
-        const result = await promise;
-        this.cachedPromises.delete(key);
-        this.cachedQueueInfo.set(key, result);
+		const result = await promise;
+		this.cachedPromises.delete(key);
+		this.cachedQueueInfo.set(key, result);
 
-        return result;
-    }
+		return result;
+	}
 
-    private getQueueCacheKey(name: string, accountId?: string) {
-        return `name:${name};accountId:${accountId ? accountId : ''}`;
-    }
+	private getQueueCacheKey(name: string, accountId?: string) {
+		return `name:${name};accountId:${accountId ? accountId : ''}`;
+	}
 
-    async create(name: string, options?: Queue.Attributes.Input): Promise<string> {
-        assertQueueName(name);
-        const result = await this.sqs.createQueue({
-            QueueName: name,
-            Attributes: toRawAttributes(options || {
-                isFifo: Queue.isFifo(name)
-            })
-        }).promise();
+	async create(name: string, options?: Queue.Attributes.Input): Promise<string> {
+		assertQueueName(name);
+		const result = await this.sqs.createQueue({
+			QueueName: name,
+			Attributes: toRawAttributes(options || {
+				isFifo: Queue.isFifo(name)
+			})
+		}).promise();
 
-        this.clearCacheForQueue(name);
-        return result.QueueUrl as string;
-    }
+		this.clearCacheForQueue(name);
+		return result.QueueUrl as string;
+	}
 
-    private clearCacheForQueue(name: string) {
-        const cacheKey = this.getQueueCacheKey(name);
-        this.cachedPromises.delete(cacheKey);
-        this.cachedQueueInfo.delete(cacheKey);
-    }
+	private clearCacheForQueue(name: string) {
+		const cacheKey = this.getQueueCacheKey(name);
+		this.cachedPromises.delete(cacheKey);
+		this.cachedQueueInfo.delete(cacheKey);
+	}
 
-    /**
-     * Makes sure that queue with given name exists. Does not update attributes even when differ.
-     */
-    async assert(name: string, options?: Queue.Attributes.Input): Promise<Queue.Info> {
-        try {
-            return await this.getInfo(name);
-        } catch (e) {
-            if (e.code === 'AWS.SimpleQueueService.NonExistentQueue') {
-                await this.create(name, options);
-                return this.getInfo(name);
-            }
-            throw e;
-        }
-    }
+	/**
+	 * Makes sure that queue with given name exists. Does not update attributes even when differ.
+	 */
+	async assert(name: string, options?: Queue.Attributes.Input): Promise<Queue.Info> {
+		try {
+			return await this.getInfo(name);
+		} catch (e: any) {
+			if (e.code === 'AWS.SimpleQueueService.NonExistentQueue') {
+				await this.create(name, options);
+				return this.getInfo(name);
+			}
+			throw e;
+		}
+	}
 
-    private async getQueueUrl(name: string, accountId?: string): Promise<string> {
-        const result = await this.sqs.getQueueUrl({
-            QueueName: name,
-            QueueOwnerAWSAccountId: accountId
-        }).promise();
+	private async getQueueUrl(name: string, accountId?: string): Promise<string> {
+		const result = await this.sqs.getQueueUrl({
+			QueueName: name,
+			QueueOwnerAWSAccountId: accountId
+		}).promise();
 
-        if (!result.QueueUrl) {
-            throw new Error(`Something went wrong with getting queue URL: ${name}, accountId: ${accountId}`);
-        }
-        return result.QueueUrl;
-    }
+		if (!result.QueueUrl) {
+			throw new Error(`Something went wrong with getting queue URL: ${name}, accountId: ${accountId}`);
+		}
+		return result.QueueUrl;
+	}
 
-    private async getInfoInternal(name: string, accountId?: string) {
-        const url = await this.getQueueUrl(name, accountId);
+	private async getInfoInternal(name: string, accountId?: string) {
+		const url = await this.getQueueUrl(name, accountId);
 
-        const attributes = [
-            "DelaySeconds",
-            "RedrivePolicy",
-            "KmsDataKeyReusePeriodSeconds",
-            "KmsMasterKeyId",
-            "MaximumMessageSize",
-            "MessageRetentionPeriod",
-            "ReceiveMessageWaitTimeSeconds",
-            "VisibilityTimeout",
-            "QueueArn"
-        ];
+		const attributes = [
+			"DelaySeconds",
+			"RedrivePolicy",
+			"KmsDataKeyReusePeriodSeconds",
+			"KmsMasterKeyId",
+			"MaximumMessageSize",
+			"MessageRetentionPeriod",
+			"ReceiveMessageWaitTimeSeconds",
+			"VisibilityTimeout",
+			"QueueArn"
+		];
 
-        if (Queue.isFifo(name)) {
-            attributes.push("FifoQueue", "ContentBasedDeduplication");
-        }
+		if (Queue.isFifo(name)) {
+			attributes.push("FifoQueue", "ContentBasedDeduplication");
+		}
 
-        const resultAttributes = await this.sqs.getQueueAttributes({
-            QueueUrl: url,
-            AttributeNames: attributes
-        }).promise();
+		const resultAttributes = await this.sqs.getQueueAttributes({
+			QueueUrl: url,
+			AttributeNames: attributes
+		}).promise();
 
-        if (!resultAttributes.Attributes) {
-            throw new Error(`Something went wrong with getting queue attributes: ${name}, accountId: ${accountId}`);
-        }
+		if (!resultAttributes.Attributes) {
+			throw new Error(`Something went wrong with getting queue attributes: ${name}, accountId: ${accountId}`);
+		}
 
-        return new Queue.Info(
-            name,
-            url,
-            fromRawToAttributes(resultAttributes.Attributes)
-        );
-    }
+		return new Queue.Info(
+			name,
+			url,
+			fromRawToAttributes(resultAttributes.Attributes)
+		);
+	}
 
-    async delete(name: string, accountId?: string) {
-        const url = await this.getQueueUrl(name, accountId);
-        await this.sqs.deleteQueue({
-            QueueUrl: url
-        }).promise();
-    }
+	async delete(name: string, accountId?: string) {
+		const url = await this.getQueueUrl(name, accountId);
+		await this.sqs.deleteQueue({
+			QueueUrl: url
+		}).promise();
+	}
 }
