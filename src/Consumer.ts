@@ -34,13 +34,10 @@ export class Consumer<TMessage extends Message<any, any>> extends EventEmitter {
 	private requestAttemptId?: string;
 
 	static defaultResultHandler: ResultHandler<any> = async (context: ResultContext<any>, error: any) => {
-		console.log('Default result handler');
 		if (!error) {
-			console.log('ACK');
 			await context.ack();
 			return;
 		}
-		console.log('REJECT');
 		await context.reject();
 	};
 
