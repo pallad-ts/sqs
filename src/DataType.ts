@@ -1,6 +1,6 @@
 import * as is from 'predicates';
-import {SQS} from 'aws-sdk';
 import {isTypedArray, TypedArray} from "./typedArray";
+import {MessageAttributeValue} from '@aws-sdk/client-sqs';
 
 const isStringKind = is.matches(/^String(?:\..+)?$/);
 const isNumberKind = is.matches(/^Number(?:\..+)?$/);
@@ -37,22 +37,26 @@ export class DataType<TSource, TRaw extends DataType.RawType = DataType.RawType>
 		return isBinaryKind(this.name);
 	}
 
-	toRaw(value: TSource): SQS.MessageAttributeValue {
+	toRaw(value: TSource): MessageAttributeValue {
 		const storageValue = this.serializer(value);
 
-		const result: SQS.MessageAttributeValue = {
+		const result: MessageAttributeValue = {
 			DataType: this.name
 		};
 
 		if (this.isBinaryType) {
-			result.BinaryValue = storageValue;
+			if (isTypedArray(storageValue)) {
+				result.BinaryValue = storageValue;
+			} else {
+				throw new Error(`Cannot set value for datatype ${this.name} since serialized value is not Typed array`);
+			}
 		} else {
 			result.StringValue = storageValue as string;
 		}
 		return result;
 	}
 
-	fromRaw(value: SQS.MessageAttributeValue) {
+	fromRaw(value: MessageAttributeValue) {
 		if (this.isBinaryType) {
 			return this.deserializer(value.BinaryValue as TRaw);
 		}

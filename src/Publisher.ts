@@ -1,11 +1,12 @@
 import {Message} from "./Message";
-import {SQS} from 'aws-sdk';
 import {MessageConverter, RawBatchMessage} from "./MessageConverter";
 import {Queue} from "./Queue";
 import * as is from 'predicates';
 import * as debugModule from "debug";
 import {debugFn} from './debugFn';
 import {create} from "@pallad/id";
+import {SendMessageBatchCommand, SendMessageBatchResult, SendMessageCommand, SQSClient} from "@aws-sdk/client-sqs";
+import {BatchResultErrorEntry, SendMessageBatchResultEntry} from "@aws-sdk/client-sqs/dist-types/models/models_0";
 
 const assertGroupId = is.assert(
 	is.prop('groupId', is.all(is.string, is.notBlank)),
@@ -30,7 +31,7 @@ const assertDeduplicationIdNotDefined = is.assert(
 export class Publisher<TMessage extends Message<any, any>> {
 	private debug: debugModule.IDebugger;
 
-	constructor(private sqs: SQS, private messageConverter: MessageConverter, private queue: Queue.Info) {
+	constructor(private sqsClient: SQSClient, private messageConverter: MessageConverter, private queue: Queue.Info) {
 		this.debug = debugFn('publisher:' + this.queue.name);
 	}
 
@@ -54,18 +55,18 @@ export class Publisher<TMessage extends Message<any, any>> {
 	publish(input: Message.Input<TMessage['body']>) {
 		this.validateMessage(input);
 		this.debug('Publishing message');
-		return this.sqs.sendMessage(
+		return this.sqsClient.send(new SendMessageCommand(
 			{
 				...this.convertMessage(input),
 				QueueUrl: this.queue.url
 			}
-		).promise()
+		));
 	}
 
 	async publishMany(messages: Array<Message.Input<TMessage['body']> | Message.BatchInput<TMessage['body']>>) {
-		const result: SQS.SendMessageBatchResult = {
-			Failed: [],
-			Successful: []
+		const result = {
+			Failed: [] as BatchResultErrorEntry[],
+			Successful: [] as SendMessageBatchResultEntry[]
 		};
 
 		messages.forEach(this.validateMessage, this);
@@ -84,12 +85,17 @@ export class Publisher<TMessage extends Message<any, any>> {
 					return raw;
 				}
 			);
-			const groupResult = await this.sqs.sendMessageBatch({
+			const groupResult = await this.sqsClient.send(new SendMessageBatchCommand({
 				QueueUrl: this.queue.url,
 				Entries: entries
-			}, undefined).promise();
-			result.Successful.push(...groupResult.Successful);
-			result.Failed.push(...groupResult.Failed)
+			}));
+
+			if (groupResult.Successful) {
+				result.Successful.push(...groupResult.Successful);
+			}
+			if (groupResult.Failed) {
+				result.Failed.push(...groupResult.Failed)
+			}
 		}
 		return result;
 	}

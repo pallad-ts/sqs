@@ -1,6 +1,5 @@
 import * as fixtures from '../fixtures';
 import {Message} from "@src/Message";
-import {SQS} from "aws-sdk";
 
 describe('Message', () => {
 	const MESSAGE_STANDARD = fixtures.message.regular;
@@ -26,7 +25,7 @@ describe('Message', () => {
 			const message = MESSAGE_FIFO;
 			expect(message.groupId)
 				.toEqual(
-					(message.raw.Attributes as SQS.MessageSystemAttributeMap).MessageGroupId
+					message.raw.Attributes?.MessageGroupId
 				);
 
 			expect(message.groupId)
@@ -43,7 +42,7 @@ describe('Message', () => {
 			const message = MESSAGE_FIFO_DEDUP;
 			expect(message.groupId)
 				.toEqual(
-					(message.raw.Attributes as SQS.MessageSystemAttributeMap).MessageGroupId
+					message.raw.Attributes?.MessageGroupId
 				);
 
 			expect(message.groupId)
@@ -51,7 +50,7 @@ describe('Message', () => {
 
 			expect(message.deduplicationId)
 				.toEqual(
-					(message.raw.Attributes as SQS.MessageSystemAttributeMap).MessageDeduplicationId
+					message.raw.Attributes?.MessageDeduplicationId
 				);
 
 			expect(message.deduplicationId)

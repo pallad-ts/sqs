@@ -1,7 +1,7 @@
-import {SQS, AWSError} from "aws-sdk";
 import {Queue} from "./Queue";
 import * as is from 'predicates';
 import {Agent} from 'https';
+import {CreateQueueCommand, DeleteQueueCommand, GetQueueAttributesCommand, GetQueueUrlCommand, QueueAttributeName, SQSClient} from '@aws-sdk/client-sqs';
 
 const assertQueueName = is.assert(
 	is.all(
@@ -12,8 +12,8 @@ const assertQueueName = is.assert(
 );
 
 // TODO add "Policy" and "RedrivePolicy", "KmsMasterKeyId", "KmsDataKeyReusePeriodSeconds"
-function toRawAttributes(attributes: Queue.Attributes.Input): SQS.QueueAttributeMap {
-	const result: SQS.QueueAttributeMap = {};
+function toRawAttributes(attributes: Queue.Attributes.Input): Record<string, string> {
+	const result: Record<string, string> = {};
 
 	if ('delay' in attributes) {
 		result.DelaySeconds = String(attributes.delay);
@@ -45,7 +45,7 @@ function toRawAttributes(attributes: Queue.Attributes.Input): SQS.QueueAttribute
 	return result;
 }
 
-function fromRawToAttributes(attributes: SQS.QueueAttributeMap): Queue.Attributes {
+function fromRawToAttributes(attributes: Record<string, string>): Queue.Attributes {
 	return {
 		delay: parseFloat(attributes.DelaySeconds),
 		isContentBasedDeduplication: attributes.ContentBasedDeduplication === 'true',
@@ -62,21 +62,8 @@ export class QueueManager {
 	private cachedQueueInfo: Map<string, Queue.Info> = new Map();
 	private cachedPromises: Map<string, Promise<Queue.Info>> = new Map();
 
-	constructor(readonly sqs: SQS) {
+	constructor(readonly sqsClient: SQSClient) {
 
-	}
-
-	static create() {
-		return new QueueManager(
-			new SQS({
-				httpOptions: {
-					agent: new Agent({
-						keepAlive: true,
-						keepAliveMsecs: 20000
-					})
-				}
-			})
-		)
 	}
 
 	async getInfo(name: string, accountId?: string): Promise<Queue.Info> {
@@ -110,12 +97,14 @@ export class QueueManager {
 
 	async create(name: string, options?: Queue.Attributes.Input): Promise<string> {
 		assertQueueName(name);
-		const result = await this.sqs.createQueue({
-			QueueName: name,
-			Attributes: toRawAttributes(options || {
-				isFifo: Queue.isFifo(name)
+		const result = await this.sqsClient.send(
+			new CreateQueueCommand({
+				QueueName: name,
+				Attributes: toRawAttributes(options || {
+					isFifo: Queue.isFifo(name)
+				})
 			})
-		}).promise();
+		);
 
 		this.clearCacheForQueue(name);
 		return result.QueueUrl as string;
@@ -143,10 +132,10 @@ export class QueueManager {
 	}
 
 	private async getQueueUrl(name: string, accountId?: string): Promise<string> {
-		const result = await this.sqs.getQueueUrl({
+		const result = await this.sqsClient.send(new GetQueueUrlCommand({
 			QueueName: name,
 			QueueOwnerAWSAccountId: accountId
-		}).promise();
+		}));
 
 		if (!result.QueueUrl) {
 			throw new Error(`Something went wrong with getting queue URL: ${name}, accountId: ${accountId}`);
@@ -173,10 +162,10 @@ export class QueueManager {
 			attributes.push("FifoQueue", "ContentBasedDeduplication");
 		}
 
-		const resultAttributes = await this.sqs.getQueueAttributes({
+		const resultAttributes = await this.sqsClient.send(new GetQueueAttributesCommand({
 			QueueUrl: url,
 			AttributeNames: attributes
-		}).promise();
+		}));
 
 		if (!resultAttributes.Attributes) {
 			throw new Error(`Something went wrong with getting queue attributes: ${name}, accountId: ${accountId}`);
@@ -191,8 +180,8 @@ export class QueueManager {
 
 	async delete(name: string, accountId?: string) {
 		const url = await this.getQueueUrl(name, accountId);
-		await this.sqs.deleteQueue({
+		await this.sqsClient.send(new DeleteQueueCommand({
 			QueueUrl: url
-		}).promise();
+		}));
 	}
 }

@@ -1,11 +1,11 @@
-import * as AWS from 'aws-sdk';
 import {TypedArray} from "./typedArray";
 import {Queue} from "./Queue";
 import {create} from "@pallad/id";
 import {isBinaryKind} from "./DataType";
+import {Message as AWSMessage} from '@aws-sdk/client-sqs';
 
-export class Message<TBody = string, TAttributes = Message.Attributes> {
-	constructor(public readonly raw: AWS.SQS.Message,
+export class Message<TBody = string, TAttributes extends Message.Attributes = Message.Attributes> {
+	constructor(public readonly raw: AWSMessage,
 				public readonly queue: Queue.Info,
 				public readonly body: TBody,
 				public readonly attributes: TAttributes) {
@@ -13,11 +13,11 @@ export class Message<TBody = string, TAttributes = Message.Attributes> {
 	}
 
 	get groupId(): string | undefined {
-		return (this.raw.Attributes as AWS.SQS.MessageSystemAttributeMap).MessageGroupId;
+		return this.raw.Attributes?.MessageGroupId;
 	}
 
 	get deduplicationId(): string | undefined {
-		return (this.raw.Attributes as AWS.SQS.MessageSystemAttributeMap).MessageDeduplicationId;
+		return this.raw.Attributes?.MessageDeduplicationId;
 	}
 
 	get internalAttributes() {
@@ -36,9 +36,10 @@ export class Message<TBody = string, TAttributes = Message.Attributes> {
 		if (this.raw.MessageAttributes) {
 			attributes = {};
 			for (const [key, value] of Object.entries(this.raw.MessageAttributes)) {
+				const finalDataType = value.DataType ? value.DataType : 'String';
 				attributes[key] = {
-					type: value.DataType,
-					value: isBinaryKind(value.DataType) ? value.BinaryValue : value.StringValue
+					type: finalDataType,
+					value: isBinaryKind(finalDataType) ? value.BinaryValue : value.StringValue
 				};
 			}
 		}
@@ -53,9 +54,7 @@ export class Message<TBody = string, TAttributes = Message.Attributes> {
 }
 
 export namespace Message {
-	export interface Attributes {
-		[key: string]: any
-	}
+	export type Attributes = Record<string, unknown>
 
 	export interface Input<TBody = any> {
 		delay?: number;

@@ -1,13 +1,13 @@
 {
-  "name": "alpha-sqs",
-  "version": "0.2.4",
-  "description": "AWS SQS Consumer with retry support",
+  "name": "@pallad/sqs",
+  "version": "0.3.0",
+  "description": "AWS SQS Consumer, Producer and Manager",
   "main": "compiled/index.js",
   "types": "compiled/index.d.ts",
   "scripts": {
-    "test": "DOTENV_CONFIG_PATH=./integration_tests/.env node -r dotenv/config ./node_modules/.bin/pallad-scripts test",
-    "compile": "./node_modules/.bin/pallad-scripts compile",
-    "lint": "pallad-scripts lint"
+    "test": "DOTENV_CONFIG_PATH=./test/integration/.env node -r dotenv/config ./node_modules/.bin/pallad-scripts test",
+    "compile": "npx pallad-scripts compile",
+    "lint": "npx pallad-scripts lint"
   },
   "repository": {
     "type": "git",
@@ -16,8 +16,6 @@
   "keywords": [
     "sqs",
     "aws",
-    "alpha-packages",
-    "retry",
     "queue"
   ],
   "author": "Łukasz Kużyński <lukasz.kuzynski@gmail.com>",
@@ -29,26 +27,19 @@
     "compiled"
   ],
   "homepage": "https://github.com/wookieb/alpha-sqs-consumer#readme",
-  "peerDependencies": {
-    "aws-sdk": "^2.88.0"
-  },
   "dependencies": {
+    "@aws-sdk/client-sqs": "^3.414.0",
+    "@pallad/id": "^1",
     "@types/debug": "0.0.29",
-    "alpha-serializer": "0.5.*",
-    "aws-sdk": "^2.615.0",
-    "debug": "^4.1.1",
+    "alpha-serializer": "^0.5",
+    "debug": "^4.3.4",
     "predicates": "^2.0.3",
-    "tslib": "^2",
-    "@pallad/id": "^1"
+    "tslib": "^2"
   },
   "devDependencies": {
-    "@pallad/scripts": "^2",
-    "@types/faker": "^4.1.9",
-    "@types/jest": "^27",
-    "@types/node": "^14",
-    "@types/sinon": "^9",
-    "chai": "^4.2.0",
-    "dotenv": "^8.2.0",
-    "faker": "^4.1.0"
+    "@pallad/scripts": "^3.0.2",
+    "@types/node": "^18",
+    "jest-serial-runner": "^1.2.1",
+    "dotenv": "^8.2.0"
   }
 }

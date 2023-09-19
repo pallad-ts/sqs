@@ -1,3 +1,4 @@
 module.exports = {
-    preset: '@pallad/scripts'
-};
+	preset: '@pallad/scripts',
+	runner: 'jest-serial-runner'
+}

@@ -16,7 +16,7 @@ export class Manager {
 
 	async createPublisher(queueName: string, accountId?: string) {
 		const queueInfo = await this.queueManager.getInfo(queueName, accountId);
-		return new Publisher(this.queueManager.sqs, this.messageConverter, queueInfo);
+		return new Publisher(this.queueManager.sqsClient, this.messageConverter, queueInfo);
 	}
 
 	async consume<TMessage extends Message<any, any>>(queueName: string,
@@ -24,7 +24,7 @@ export class Manager {
 													  options: Manager.ConsumerOptions<TMessage> = {}): Promise<Consumer<TMessage>> {
 		const queueInfo = await this.queueManager.getInfo(queueName);
 		const {resultHandler, autoStart = true, ...consumerOptions} = options;
-		const consumer = new Consumer<TMessage>(this.queueManager.sqs, this.messageConverter, queueInfo, consumerOptions);
+		const consumer = new Consumer<TMessage>(this.queueManager.sqsClient, this.messageConverter, queueInfo, consumerOptions);
 		consumer.onMessage(func, resultHandler);
 		this.consumers.add(consumer);
 		if (autoStart) {
@@ -64,10 +64,6 @@ export class Manager {
 				for (const consumer of this.consumers) {
 					consumer.once('all-consumed', () => {
 						if (getTotalOngoingConsumptions() === 0) {
-							const agent = this.queueManager.sqs.config.httpOptions?.agent;
-							if (agent && Object.is(agent, globalAgent)) {
-								agent.destroy();
-							}
 							resolve();
 						}
 					});

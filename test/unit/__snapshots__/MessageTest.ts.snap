@@ -1,25 +1,22 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`Message converting to input message fifo with dedup with delay 1`] = `
-Object {
-  "attributes": Object {
-    "any": Object {
+{
+  "attributes": {
+    "any": {
       "type": "Number",
       "value": "100",
     },
-    "bin": Object {
+    "bin": {
       "type": "Binary",
-      "value": Object {
-        "data": Array [
-          116,
-          101,
-          115,
-          116,
-        ],
-        "type": "Buffer",
-      },
+      "value": Uint8Array [
+        116,
+        101,
+        115,
+        116,
+      ],
     },
-    "some": Object {
+    "some": {
       "type": "String",
       "value": "string",
     },
@@ -32,25 +29,22 @@ Object {
 `;
 
 exports[`Message converting to input message fifo with dedup without delay 1`] = `
-Object {
-  "attributes": Object {
-    "any": Object {
+{
+  "attributes": {
+    "any": {
       "type": "Number",
       "value": "100",
     },
-    "bin": Object {
+    "bin": {
       "type": "Binary",
-      "value": Object {
-        "data": Array [
-          116,
-          101,
-          115,
-          116,
-        ],
-        "type": "Buffer",
-      },
+      "value": Uint8Array [
+        116,
+        101,
+        115,
+        116,
+      ],
     },
-    "some": Object {
+    "some": {
       "type": "String",
       "value": "string",
     },
@@ -63,25 +57,22 @@ Object {
 `;
 
 exports[`Message converting to input message fifo with delay 1`] = `
-Object {
-  "attributes": Object {
-    "any": Object {
+{
+  "attributes": {
+    "any": {
       "type": "Number",
       "value": "100",
     },
-    "bin": Object {
+    "bin": {
       "type": "Binary",
-      "value": Object {
-        "data": Array [
-          116,
-          101,
-          115,
-          116,
-        ],
-        "type": "Buffer",
-      },
+      "value": Uint8Array [
+        116,
+        101,
+        115,
+        116,
+      ],
     },
-    "some": Object {
+    "some": {
       "type": "String",
       "value": "string",
     },
@@ -94,25 +85,22 @@ Object {
 `;
 
 exports[`Message converting to input message fifo without delay 1`] = `
-Object {
-  "attributes": Object {
-    "any": Object {
+{
+  "attributes": {
+    "any": {
       "type": "Number",
       "value": "100",
     },
-    "bin": Object {
+    "bin": {
       "type": "Binary",
-      "value": Object {
-        "data": Array [
-          116,
-          101,
-          115,
-          116,
-        ],
-        "type": "Buffer",
-      },
+      "value": Uint8Array [
+        116,
+        101,
+        115,
+        116,
+      ],
     },
-    "some": Object {
+    "some": {
       "type": "String",
       "value": "string",
     },
@@ -125,25 +113,22 @@ Object {
 `;
 
 exports[`Message converting to input message standard with delay 1`] = `
-Object {
-  "attributes": Object {
-    "any": Object {
+{
+  "attributes": {
+    "any": {
       "type": "Number",
       "value": "100",
     },
-    "bin": Object {
+    "bin": {
       "type": "Binary",
-      "value": Object {
-        "data": Array [
-          116,
-          101,
-          115,
-          116,
-        ],
-        "type": "Buffer",
-      },
+      "value": Uint8Array [
+        116,
+        101,
+        115,
+        116,
+      ],
     },
-    "some": Object {
+    "some": {
       "type": "String",
       "value": "string",
     },
@@ -156,7 +141,7 @@ Object {
 `;
 
 exports[`Message converting to input message standard without attributes with delay 1`] = `
-Object {
+{
   "attributes": undefined,
   "body": "some-body",
   "deduplicationId": undefined,
@@ -166,7 +151,7 @@ Object {
 `;
 
 exports[`Message converting to input message standard without attributes without delay 1`] = `
-Object {
+{
   "attributes": undefined,
   "body": "some-body",
   "deduplicationId": undefined,
@@ -176,25 +161,22 @@ Object {
 `;
 
 exports[`Message converting to input message standard without delay 1`] = `
-Object {
-  "attributes": Object {
-    "any": Object {
+{
+  "attributes": {
+    "any": {
       "type": "Number",
       "value": "100",
     },
-    "bin": Object {
+    "bin": {
       "type": "Binary",
-      "value": Object {
-        "data": Array [
-          116,
-          101,
-          115,
-          116,
-        ],
-        "type": "Buffer",
-      },
+      "value": Uint8Array [
+        116,
+        101,
+        115,
+        116,
+      ],
     },
-    "some": Object {
+    "some": {
       "type": "String",
       "value": "string",
     },

@@ -1,5 +1,12 @@
-coverage
 node_modules
+coverage
 compiled
+*.log
+junit.xml
+.idea
+**/.DS_Store
+.eslintcache
+tsnode-cache
+.task
 
-*/.env
+test/integration/.env

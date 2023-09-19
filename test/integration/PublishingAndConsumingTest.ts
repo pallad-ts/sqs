@@ -1,13 +1,12 @@
 import {manager} from './config';
 import {Publisher} from "@src/Publisher";
 import * as fixtures from '../fixtures';
-import {String} from "aws-sdk/clients/sqs";
 import {Message} from "@src/Message";
 import {create} from "@pallad/id";
 import {ResultContext} from "@src/ResultContext";
 
 function createConsumerFunc() {
-	let resolve: (data: any) => void;
+	let resolve: ((data: any) => void);
 	const promise = new Promise<Message>(r => {
 		resolve = r;
 	});
@@ -23,9 +22,6 @@ function createConsumerFunc() {
 describe('Publishing', () => {
 	jest.setTimeout(30000);
 
-	afterAll(() => {
-
-	})
 	describe('standard queue', () => {
 		const QUEUE = `alpha_publishing_standard`;
 		const MESSAGE = fixtures.message.regular;
@@ -38,7 +34,7 @@ describe('Publishing', () => {
 		});
 
 		afterEach(() => {
-			return manager.stopAllConsumers();
+			manager.stopAllConsumers();
 		});
 
 		it('publishing', async () => {
@@ -64,7 +60,6 @@ describe('Publishing', () => {
 		it('consuming per message group is not supported by standard queue consumer', async () => {
 			// tslint:disable-next-line:no-empty
 			const consumer = await manager.consume(QUEUE, () => {
-
 			});
 
 			expect(() => {
@@ -115,11 +110,12 @@ describe('Publishing', () => {
 		});
 
 		it('consuming by group id', async () => {
-			const GROUP_1 = MESSAGE.groupId;
+			const GROUP_1 = 'group1';
 			const GROUP_2 = 'group2';
 
 			const MESSAGE_INPUT_1 = {
 				...MESSAGE.toInput(),
+				groupId: GROUP_1,
 				deduplicationId: create()
 			};
 			const MESSAGE_INPUT_2: Message.Input = {
@@ -150,7 +146,6 @@ describe('Publishing', () => {
 					groupId: GROUP_1
 				});
 
-
 			expect(message2)
 				.toMatchObject({
 					deduplicationId: MESSAGE_INPUT_2.deduplicationId,
@@ -170,7 +165,7 @@ describe('Publishing', () => {
 		});
 
 		it('40', async () => {
-			const inputs = Array(40).fill(MESSAGE.toInput());
+			const inputs = Array(120).fill(MESSAGE.toInput());
 
 			let isReady;
 			const promise = new Promise(resolve => isReady = resolve);
@@ -190,14 +185,15 @@ describe('Publishing', () => {
 					return Promise.resolve(undefined);
 				}
 			});
-			await consumer.start();
+			consumer.start();
 			await promise;
 
+			consumer.stop();
 			let i = 0;
 			for (const context of contexts) {
 				await context.ack()
 			}
 			await manager.stopAllConsumersAndWaitToFinish();
-		});
+		}, 60000);
 	});
 });

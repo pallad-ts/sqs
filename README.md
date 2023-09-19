@@ -1,7 +1,6 @@
-# Alpha SQS Consumer
+# SQS
 
 Powerful Amazon SQS consumer with delayed retry support.
-
 
 ## Features
 * Support for delayed retry
@@ -12,5 +11,5 @@ Powerful Amazon SQS consumer with delayed retry support.
 
 ## Installation
 ```bash
-npm install --save alpha-sqs-consumer
+npm install --save @pallad/sqs
 ```

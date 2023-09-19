@@ -1,4 +1,3 @@
-import * as AWS from 'aws-sdk';
 import {EventEmitter} from 'events';
 import {Message} from "./Message";
 import {ResultContext, ResultHandler} from "./ResultContext";
@@ -7,6 +6,7 @@ import * as debugModule from 'debug';
 import {Queue} from "./Queue";
 import {MessageConverter} from "./MessageConverter";
 import {ulidPrefixedFactory} from "./requestAttemptGenerator";
+import {ReceiveMessageCommand, SQSClient} from "@aws-sdk/client-sqs";
 
 export type ConsumerFunction<TMessage extends Message<any, any>> = (message: TMessage) => any;
 
@@ -17,7 +17,8 @@ export class Consumer<TMessage extends Message<any, any>> extends EventEmitter {
 
 	private consumerToGroup: Map<string, Consumer.Definition<TMessage>> = new Map();
 	private defaultConsumer!: Consumer.Definition<TMessage>;
-	private receiveRequest?: AWS.Request<AWS.SQS.Types.ReceiveMessageResult, AWS.AWSError>;
+
+	private abort = new AbortController();
 	private poolScheduled = false;
 
 	private debug: debugModule.IDebugger;
@@ -26,21 +27,24 @@ export class Consumer<TMessage extends Message<any, any>> extends EventEmitter {
 
 	static defaultOptions: Consumer.Options = {
 		maxMessages: 10,
-		minMessages: 5,
+		minMessages: 3,
 		requestAttemptGenerator: ulidPrefixedFactory()
 	};
 
 	private requestAttemptId?: string;
 
 	static defaultResultHandler: ResultHandler<any> = async (context: ResultContext<any>, error: any) => {
+		console.log('Default result handler');
 		if (!error) {
+			console.log('ACK');
 			await context.ack();
 			return;
 		}
+		console.log('REJECT');
 		await context.reject();
 	};
 
-	constructor(private sqs: AWS.SQS,
+	constructor(private sqsClient: SQSClient,
 				private messageConverter: MessageConverter,
 				readonly queue: Queue.Info,
 				options?: Partial<Consumer.Options>) {
@@ -53,7 +57,7 @@ export class Consumer<TMessage extends Message<any, any>> extends EventEmitter {
 
 		this.debug = debugFn('consumer:' + this.queue.name);
 
-		for (const event of ['rejected', 'consumed', 'retried']) {
+		for (const event of ['rejected', 'consumed']) {
 			this.on(event, message => {
 				this.debug(`Message - ${event} - ${message.sequenceNumber}`);
 				this.decrementCounter();
@@ -131,39 +135,37 @@ export class Consumer<TMessage extends Message<any, any>> extends EventEmitter {
 			messagesToFetch = 10;
 		}
 		this.debug(`Starting messages pooling (Amount of message ${messagesToFetch}). Attempt id: ${this.requestAttemptId}`);
-		this.receiveRequest = this.sqs.receiveMessage({
+		const command = new ReceiveMessageCommand({
 			QueueUrl: this.queue.url,
 			AttributeNames: ['All'],
 			MessageAttributeNames: ['.*'],
 			MaxNumberOfMessages: messagesToFetch,
 			WaitTimeSeconds: 20,
 			ReceiveRequestAttemptId: this.requestAttemptId
-		}, (err: AWS.AWSError, result: AWS.SQS.Types.ReceiveMessageResult) => {
-			this.receiveRequest = undefined;
+		});
+
+		this.sqsClient.send(command, {abortSignal: this.abort.signal}).then(result => {
 			this.poolScheduled = false;
-
-			if (err) {
-				if (err.name === 'RequestAbortedError') {
-					this.debug('Request aborted');
-					this.schedulePool();
-					return;
-				}
-
-				this.debug('Failed to fetch messages: ' + err.message);
-				this.emit('error', err);
-				this.schedulePool();
-				return;
-			}
-
 			this.debug(`Messages found: ${(result.Messages && result.Messages.length) || 0}`);
 
 			this.requestAttemptId = undefined;
 			if (result.Messages && result.Messages.length) {
 				result.Messages
-					.map((m: AWS.SQS.Message) => {
-						return this.messageConverter.fromRawMessage(m, this.queue) as TMessage;
+					.map(message => {
+						return this.messageConverter.fromRawMessage(message, this.queue) as TMessage;
 					})
 					.forEach(this.consumeMessage, this);
+			}
+			this.schedulePool();
+		}).catch(err => {
+			this.poolScheduled = false;
+
+			if (err.name === 'AbortError') {
+				this.debug('Request aborted');
+			} else {
+				// eslint-disable-next-line @typescript-eslint/restrict-plus-operands
+				this.debug('Failed to fetch messages: ' + err.message);
+				this.emit('error', err);
 			}
 			this.schedulePool();
 		});
@@ -183,7 +185,7 @@ export class Consumer<TMessage extends Message<any, any>> extends EventEmitter {
 				return;
 			}
 
-			if (this.ongoingConsumptions <= (this.options.maxMessages - this.options.minMessages)) {
+			if (this.ongoingConsumptions <= this.options.maxMessages) {
 				this.poolScheduled = true;
 				this.pool();
 			}
@@ -205,7 +207,7 @@ export class Consumer<TMessage extends Message<any, any>> extends EventEmitter {
 	}
 
 	private async consumeMessageWithConsumer(message: TMessage, consumerDefinition: Consumer.Definition<TMessage>) {
-		const resultContext = new ResultContext(this.sqs, this, message);
+		const resultContext = new ResultContext(this.sqsClient, this, message);
 		try {
 			const result = await consumerDefinition.consumerFunction(message);
 			await consumerDefinition.resultHandler(resultContext, undefined, result);
@@ -220,10 +222,7 @@ export class Consumer<TMessage extends Message<any, any>> extends EventEmitter {
 		}
 
 		this.debug('Stopping consumption of queue: ' + this.queue.name);
-		if (this.receiveRequest) {
-			this.receiveRequest.abort();
-			this.receiveRequest = undefined;
-		}
+		this.abort.abort('STOPPED');
 
 		this.isRunning = false;
 	}
@@ -238,7 +237,7 @@ export namespace Consumer {
 
 	export interface Options {
 		/**
-		 * Maximum amount of messages to receive within a single ReceiveMessage request
+		 * Maximum amount of messages that consumer might consume at a time
 		 */
 		maxMessages: number,
 

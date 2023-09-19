@@ -1,8 +1,8 @@
 import {DataType} from "./DataType";
 import {SerializerInterface} from 'alpha-serializer';
-import {SQS} from 'aws-sdk';
 import {Message} from "./Message";
 import {Queue} from "./Queue";
+import {SendMessageCommandInput, SendMessageBatchRequestEntry, Message as AWSMessage, MessageAttributeValue} from '@aws-sdk/client-sqs';
 import * as is from 'predicates';
 
 function isMessageAttribute(value: any): value is Message.Input.MessageAttribute {
@@ -13,11 +13,11 @@ function isMessageAttribute(value: any): value is Message.Input.MessageAttribute
 }
 
 export type CommonRawMessageFields = 'MessageBody' | 'MessageGroupId' | 'MessageAttributes' | 'DelaySeconds' | 'MessageDeduplicationId';
-export type RawMessage = Pick<SQS.SendMessageRequest, CommonRawMessageFields>;
-export type RawBatchMessage = Pick<SQS.SendMessageBatchRequestEntry, CommonRawMessageFields | 'Id'>;
+export type RawMessage = Pick<SendMessageCommandInput, CommonRawMessageFields>;
+export type RawBatchMessage = Pick<SendMessageBatchRequestEntry, CommonRawMessageFields | 'Id'>;
 
 export class MessageConverter {
-	private dataTypes: Map<string, DataType<any, any>> = new Map();
+	private dataTypes = new Map<string, DataType<any, any>>();
 
 	constructor(private serializer: SerializerInterface<string>) {
 		this.registerDataType(DataType.Common.STRING);
@@ -33,7 +33,7 @@ export class MessageConverter {
 		return this;
 	}
 
-	fromRawMessage<TBody = string, TAttributes = Message.Attributes>(raw: SQS.Message, queue: Queue.Info): Message<TBody, TAttributes> {
+	fromRawMessage<TBody = string, TAttributes extends Record<string, any> = Record<string, unknown>>(raw: AWSMessage, queue: Queue.Info): Message<TBody, TAttributes> {
 		return new Message<TBody, TAttributes>(
 			raw,
 			queue,
@@ -42,11 +42,11 @@ export class MessageConverter {
 		)
 	}
 
-	private messageAttributesFromRawMessage<TAttributes extends Message.Attributes>(raw: SQS.Message): TAttributes {
+	private messageAttributesFromRawMessage<TAttributes extends Message.Attributes>(raw: AWSMessage): TAttributes {
 		const result: any = {};
 		if (raw.MessageAttributes) {
 			for (const [key, value] of Object.entries(raw.MessageAttributes)) {
-				result[key] = this.findDataType(value.DataType)
+				result[key] = this.findDataType(value?.DataType ?? DataType.Common.STRING.name)
 					.fromRaw(value);
 			}
 		}
@@ -78,8 +78,8 @@ export class MessageConverter {
 		return message;
 	}
 
-	private messageAttributesFromInput(messageAttributes: NonNullable<Message.Input['attributes']>): SQS.MessageBodyAttributeMap {
-		const result: SQS.MessageBodyAttributeMap = {};
+	private messageAttributesFromInput(messageAttributes: NonNullable<Message.Input['attributes']>): Record<string, MessageAttributeValue> {
+		const result: Record<string, MessageAttributeValue> = {};
 		for (const [key, value] of Object.entries(messageAttributes)) {
 			result[key] = this.attributeToRaw(value);
 		}
@@ -87,7 +87,7 @@ export class MessageConverter {
 
 	}
 
-	private attributeToRaw(value: Message.Input.MessageAttributeValue): SQS.MessageAttributeValue {
+	private attributeToRaw(value: Message.Input.MessageAttributeValue): MessageAttributeValue {
 
 		for (const dataType of this.dataTypes.values()) {
 			if (dataType.isType(value)) {
