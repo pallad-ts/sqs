@@ -11,7 +11,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/wookieb/alpha-sqs-consumer.git"
+    "url": "git+https://github.com/pallad-ts/sqs.git"
   },
   "keywords": [
     "sqs",
@@ -21,12 +21,12 @@
   "author": "Łukasz Kużyński <lukasz.kuzynski@gmail.com>",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/wookieb/alpha-sqs-consumer/issues"
+    "url": "https://github.com/pallad-ts/sqs/issues"
   },
   "files": [
     "compiled"
   ],
-  "homepage": "https://github.com/wookieb/alpha-sqs-consumer#readme",
+  "homepage": "https://github.com/pallad-ts/sqs#readme",
   "dependencies": {
     "@aws-sdk/client-sqs": "^3.414.0",
     "@pallad/id": "^1",
