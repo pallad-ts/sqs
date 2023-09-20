@@ -15,14 +15,20 @@ export class Manager {
 	}
 
 	async createPublisher(queueName: string, accountId?: string) {
-		const queueInfo = await this.queueManager.getInfo(queueName, accountId);
-		return new Publisher(this.queueManager.sqsClient, this.messageConverter, queueInfo);
+		const queueInfo = await this.queueManager.getInfo(queueName, accountId)
+		if (queueInfo) {
+			return new Publisher(this.queueManager.sqsClient, this.messageConverter, queueInfo);
+		}
+		throw new Error(`Cannot create published for queue that does not exist: ${queueName}`);
 	}
 
 	async consume<TMessage extends Message<any, any>>(queueName: string,
 													  func: ConsumerFunction<TMessage>,
 													  options: Manager.ConsumerOptions<TMessage> = {}): Promise<Consumer<TMessage>> {
 		const queueInfo = await this.queueManager.getInfo(queueName);
+		if (!queueInfo) {
+			throw new Error(`Cannot create consumer for queue that does not exist: ${queueName}`);
+		}
 		const {resultHandler, autoStart = true, ...consumerOptions} = options;
 		const consumer = new Consumer<TMessage>(this.queueManager.sqsClient, this.messageConverter, queueInfo, consumerOptions);
 		consumer.onMessage(func, resultHandler);
