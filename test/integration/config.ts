@@ -13,7 +13,7 @@ assertEnv('ACCESS_KEY_ID');
 assertEnv('ACCESS_KEY_SECRET');
 assertEnv('REGION');
 
-const sqs = new SQSClient({
+export const sqs = new SQSClient({
 	credentials: {
 		accessKeyId: process.env.ACCESS_KEY_ID!,
 		secretAccessKey: process.env.ACCESS_KEY_SECRET!,
