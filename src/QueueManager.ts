@@ -59,36 +59,31 @@ function fromRawToAttributes(attributes: Record<string, string>): Queue.Attribut
 }
 
 export class QueueManager {
-	private cachedQueueInfo: Map<string, Queue.Info> = new Map();
-	private cachedPromises: Map<string, Promise<Queue.Info>> = new Map();
+	private cachedQueueInfoPromises: Map<string, Promise<Queue.Info | undefined>> = new Map();
 
 	constructor(readonly sqsClient: SQSClient) {
 
 	}
 
-	async getInfo(name: string, accountId?: string): Promise<Queue.Info> {
+	async getInfo(name: string, accountId?: string): Promise<Queue.Info | undefined> {
 		assertQueueName(name);
 		const key = this.getQueueCacheKey(name, accountId);
 
-		if (this.cachedQueueInfo.has(key)) {
-			return this.cachedQueueInfo.get(key) as Queue.Info;
-		}
-
-		if (this.cachedPromises.has(key)) {
-			return this.cachedPromises.get(key) as Promise<Queue.Info>;
+		if (this.cachedQueueInfoPromises.has(key)) {
+			return this.cachedQueueInfoPromises.get(key)!;
 		}
 
 		const promise = this.getInfoInternal(name, accountId);
-		this.cachedPromises.set(key, promise);
-		promise.catch(e => {
-			this.cachedPromises.delete(key)
-		});
-
-		const result = await promise;
-		this.cachedPromises.delete(key);
-		this.cachedQueueInfo.set(key, result);
-
-		return result;
+		this.cachedQueueInfoPromises.set(key, promise);
+		promise.then(result => {
+			if (result === undefined) {
+				this.cachedQueueInfoPromises.delete(key);
+			}
+		})
+			.catch(() => {
+				this.cachedQueueInfoPromises.delete(key);
+			})
+		return promise;
 	}
 
 	private getQueueCacheKey(name: string, accountId?: string) {
@@ -112,39 +107,45 @@ export class QueueManager {
 
 	private clearCacheForQueue(name: string) {
 		const cacheKey = this.getQueueCacheKey(name);
-		this.cachedPromises.delete(cacheKey);
-		this.cachedQueueInfo.delete(cacheKey);
+		this.cachedQueueInfoPromises.delete(cacheKey);
 	}
 
 	/**
 	 * Makes sure that queue with given name exists. Does not update attributes even when differ.
 	 */
 	async assert(name: string, options?: Queue.Attributes.Input): Promise<Queue.Info> {
+		const info = await this.getInfo(name);
+		if (!info) {
+			await this.create(name, options);
+			const newInfo = await this.getInfo(name)
+			return newInfo!;
+		}
+		return info;
+	}
+
+	private async getQueueUrl(name: string, accountId?: string): Promise<string | undefined> {
 		try {
-			return await this.getInfo(name);
+			const result = await this.sqsClient.send(new GetQueueUrlCommand({
+				QueueName: name,
+				QueueOwnerAWSAccountId: accountId
+			}));
+
+			return result.QueueUrl;
 		} catch (e: any) {
 			if (e.code === 'AWS.SimpleQueueService.NonExistentQueue') {
-				await this.create(name, options);
-				return this.getInfo(name);
+				return undefined;
 			}
+
 			throw e;
 		}
 	}
 
-	private async getQueueUrl(name: string, accountId?: string): Promise<string> {
-		const result = await this.sqsClient.send(new GetQueueUrlCommand({
-			QueueName: name,
-			QueueOwnerAWSAccountId: accountId
-		}));
-
-		if (!result.QueueUrl) {
-			throw new Error(`Something went wrong with getting queue URL: ${name}, accountId: ${accountId}`);
-		}
-		return result.QueueUrl;
-	}
-
 	private async getInfoInternal(name: string, accountId?: string) {
 		const url = await this.getQueueUrl(name, accountId);
+
+		if (!url) {
+			return;
+		}
 
 		const attributes = [
 			"DelaySeconds",
