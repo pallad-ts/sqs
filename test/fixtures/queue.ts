@@ -11,7 +11,9 @@ export const queue = {
 			receiveMessageWaitTime: 100,
 			isContentBasedDeduplication: false,
 			delay: 0,
-			arn: 'arnstandard'
+			arn: 'arnstandard',
+			redrivePolicy: undefined,
+			redriveAllowPolicy: undefined
 		}
 	),
 	fifo: new Queue.Info(
@@ -24,7 +26,9 @@ export const queue = {
 			receiveMessageWaitTime: 100,
 			isContentBasedDeduplication: false,
 			delay: 0,
-			arn: 'arnfifo'
+			arn: 'arnfifo',
+			redrivePolicy: undefined,
+			redriveAllowPolicy: undefined
 		}
 	),
 	fifoContentDeduplication: new Queue.Info(
@@ -37,7 +41,9 @@ export const queue = {
 			receiveMessageWaitTime: 100,
 			isContentBasedDeduplication: true,
 			delay: 0,
-			arn: 'arnfifodedup'
+			arn: 'arnfifodedup',
+			redrivePolicy: undefined,
+			redriveAllowPolicy: undefined
 		}
 	)
 };

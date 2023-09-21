@@ -30,10 +30,28 @@ export namespace Queue {
 		isFifo: boolean;
 		isContentBasedDeduplication: boolean;
 		arn: string;
+		redrivePolicy: RedrivePolicy | undefined
+		redriveAllowPolicy: RedriveAllowPolicy | undefined
+	}
+
+	export type RedriveAllowPolicy = 'allowAll' | 'denyAll' | { sourceQueueArns: string[] };
+
+	export interface RedrivePolicy {
+		deadLetterQueueArn: string;
+		maxReceiveCount: number;
+	}
+
+	export namespace RedrivePolicy {
+		export interface Input {
+			deadLetterQueueArn: string;
+			maxReceiveCount?: number;
+		}
 	}
 
 	export namespace Attributes {
-		export type Input = Partial<Pick<Attributes, Exclude<keyof Attributes, 'arn'>>>;
+		export type Input = Partial<Omit<Attributes, 'arn' | 'redrivePolicy'>> & {
+			redrivePolicy?: RedrivePolicy.Input
+		};
 	}
 
 	/**

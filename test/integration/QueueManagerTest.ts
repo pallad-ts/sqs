@@ -24,4 +24,25 @@ describe('QueueManager', () => {
 			return manager.delete(QUEUE_NAME);
 		});
 	});
+
+	it('redrive attributes', async () => {
+		const redriveStorageQueue = await manager.assert('pallad-sqs-redrive-storage', {
+			redriveAllowPolicy: "allowAll"
+		});
+
+		const queueToRedrive = await manager.assert('pallad-sqs-redrive-source', {
+			redrivePolicy: {
+				deadLetterQueueArn: redriveStorageQueue.attributes.arn,
+			}
+		});
+
+		expect(redriveStorageQueue.attributes.redriveAllowPolicy)
+			.toBe('allowAll');
+
+		expect(queueToRedrive.attributes.redrivePolicy)
+			.toEqual({
+				deadLetterQueueArn: redriveStorageQueue.attributes.arn,
+				maxReceiveCount: 10
+			});
+	})
 });

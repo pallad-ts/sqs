@@ -10,7 +10,7 @@ const assertQueueName = is.assert(
 	'Queue name cannot be blank, must contains only alphanumeric characters, hyphens and underscores and has maximum length of 80 characters'
 );
 
-// TODO add "Policy" and "RedrivePolicy", "KmsMasterKeyId", "KmsDataKeyReusePeriodSeconds"
+// TODO add "Policy", "KmsMasterKeyId", "KmsDataKeyReusePeriodSeconds"
 function toRawAttributes(attributes: Queue.Attributes.Input): Record<string, string> {
 	const result: Record<string, string> = {};
 
@@ -41,6 +41,13 @@ function toRawAttributes(attributes: Queue.Attributes.Input): Record<string, str
 	if ('isContentBasedDeduplication' in attributes) {
 		result.ContentBasedDeduplication = attributes.isContentBasedDeduplication ? 'true' : 'false';
 	}
+
+	if (attributes.redrivePolicy) {
+		result.RedrivePolicy = fromRedrivePolicyToRaw(attributes.redrivePolicy);
+	}
+	if (attributes.redriveAllowPolicy) {
+		result.RedriveAllowPolicy = fromRedriveAllowPolicyToRaw(attributes.redriveAllowPolicy);
+	}
 	return result;
 }
 
@@ -53,7 +60,45 @@ function fromRawToAttributes(attributes: Record<string, string>): Queue.Attribut
 		receiveMessageWaitTime: parseFloat(attributes.ReceiveMessageWaitTimeSeconds),
 		retentionPeriod: parseFloat(attributes.MessageRetentionPeriod),
 		visibilityTimeout: parseFloat(attributes.VisibilityTimeout),
-		arn: attributes.QueueArn
+		arn: attributes.QueueArn,
+		redriveAllowPolicy: attributes.RedriveAllowPolicy ? fromRawToRedriveAllowPolicy(attributes.RedriveAllowPolicy) : undefined,
+		redrivePolicy: attributes.RedrivePolicy ? fromRawToRedrivePolicy(attributes.RedrivePolicy) : undefined
+	};
+}
+
+function fromRedrivePolicyToRaw(policy: Queue.RedrivePolicy.Input) {
+	return JSON.stringify({
+		deadLetterTargetArn: policy.deadLetterQueueArn,
+		maxReceiveCount: policy.maxReceiveCount ?? 10
+	});
+}
+
+function fromRedriveAllowPolicyToRaw(policy: Queue.RedriveAllowPolicy) {
+	if (policy === 'allowAll' || policy === 'denyAll') {
+		return JSON.stringify({redrivePermission: policy});
+	}
+	return JSON.stringify({
+		redrivePermission: 'byQueue',
+		sourceQueueArns: policy.sourceQueueArns
+	});
+}
+
+function fromRawToRedriveAllowPolicy(jsonString: string): Queue.RedriveAllowPolicy {
+	const data = JSON.parse(jsonString);
+
+	if (data.redrivePermission === 'allowAll' || data.redrivePermission === 'denyAll') {
+		return data.redrivePermission;
+	}
+
+	return {sourceQueueArns: data.sourceQueueArns as string[]}
+}
+
+function fromRawToRedrivePolicy(jsonString: string): Queue.RedrivePolicy {
+	const data = JSON.parse(jsonString);
+
+	return {
+		deadLetterQueueArn: data.deadLetterTargetArn,
+		maxReceiveCount: parseInt(data.maxReceiveCount, 10)
 	};
 }
 
@@ -155,7 +200,8 @@ export class QueueManager {
 			"MessageRetentionPeriod",
 			"ReceiveMessageWaitTimeSeconds",
 			"VisibilityTimeout",
-			"QueueArn"
+			"QueueArn",
+			"RedriveAllowPolicy"
 		];
 
 		if (Queue.isFifo(name)) {
