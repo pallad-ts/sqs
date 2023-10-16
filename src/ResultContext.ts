@@ -51,5 +51,7 @@ export class ResultContext<TMessage extends Message<any, any>> {
 			ReceiptHandle: this.message.raw.ReceiptHandle as string,
 			VisibilityTimeout: elapsedTimeInSeconds + delayInSeconds
 		}));
+
+		this.consumer.emit('delayed-retry', this.message);
 	}
 }

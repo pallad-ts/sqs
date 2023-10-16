@@ -54,7 +54,7 @@ export class Consumer<TMessage extends Message<any, any>> extends EventEmitter {
 
 		this.debug = debugFn('consumer:' + this.queue.name);
 
-		for (const event of ['rejected', 'consumed']) {
+		for (const event of ['rejected', 'consumed', 'delayed-retry']) {
 			this.on(event, message => {
 				this.debug(`Message - ${event} - ${message.sequenceNumber}`);
 				this.decrementCounter();
