@@ -5,6 +5,8 @@ import {isBinaryKind} from "./DataType";
 import {Message as AWSMessage} from '@aws-sdk/client-sqs';
 
 export class Message<TBody = string, TAttributes extends Message.Attributes = Message.Attributes> {
+	public readonly receiveDate = new Date();
+
 	constructor(public readonly raw: AWSMessage,
 				public readonly queue: Queue.Info,
 				public readonly body: TBody,
@@ -27,6 +29,26 @@ export class Message<TBody = string, TAttributes extends Message.Attributes = Me
 	get sequenceNumber(): string | undefined {
 		if (this.raw.Attributes) {
 			return this.raw.Attributes.SequenceNumber as string;
+		}
+	}
+
+	/**
+	 * Approximate retry attempt obtained from `ApproximateReceiveCount` attribute
+	 */
+	get approximateRetryAttempt(): number {
+		if (this.raw.Attributes && 'ApproximateReceiveCount' in this.raw.Attributes) {
+			return parseInt(this.raw.Attributes.ApproximateReceiveCount, 10);
+		}
+
+		return 0;
+	}
+
+	/**
+	 * Approximate first receive date obtained from `ApproximateFirstReceiveTimestamp` attribute
+	 */
+	get approximateFirstReceiveDate(): Date | undefined {
+		if (this.raw.Attributes && 'ApproximateFirstReceiveTimestamp' in this.raw.Attributes) {
+			return new Date(parseInt(this.raw.Attributes.ApproximateFirstReceiveTimestamp, 10));
 		}
 	}
 

@@ -12,7 +12,7 @@ export class ResultContext<TMessage extends Message<any, any>> {
 
 	constructor(private sqsClient: SQSClient,
 				private consumer: Consumer<TMessage>,
-				private message: TMessage) {
+				readonly message: TMessage) {
 	}
 
 	async ack() {
@@ -31,5 +31,25 @@ export class ResultContext<TMessage extends Message<any, any>> {
 		}));
 
 		this.consumer.emit('rejected', this.message);
+	}
+
+
+	/**
+	 * Delays retry of execution by changing message visibility time to elapsed visibility time + given delay
+	 *
+	 * After that delay message in queue will be visible again
+	 */
+	async delayedRetry(delayInSeconds: number) {
+		if (delayInSeconds <= 0) {
+			throw new Error('Delayed retry cannot be lower or equal 0');
+		}
+		const currentDateInSeconds = Math.floor(new Date().getTime() / 1000);
+		const receiveDateInSeconds = Math.floor(this.message.receiveDate.getTime() / 1000);
+		const elapsedTimeInSeconds = currentDateInSeconds - receiveDateInSeconds;
+		await this.sqsClient.send(new ChangeMessageVisibilityCommand({
+			QueueUrl: this.message.queue.url,
+			ReceiptHandle: this.message.raw.ReceiptHandle as string,
+			VisibilityTimeout: elapsedTimeInSeconds + delayInSeconds
+		}));
 	}
 }
