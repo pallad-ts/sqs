@@ -131,6 +131,9 @@ export class Consumer<TMessage extends Message<any, any>> extends EventEmitter {
 		if (messagesToFetch > 10) {
 			messagesToFetch = 10;
 		}
+		if (messagesToFetch <= 0) {
+			return;
+		}
 		this.debug(`Starting messages pooling (Amount of message ${messagesToFetch}). Attempt id: ${this.requestAttemptId}`);
 		const command = new ReceiveMessageCommand({
 			QueueUrl: this.queue.url,
