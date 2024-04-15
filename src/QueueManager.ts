@@ -1,6 +1,7 @@
 import {Queue} from "./Queue";
 import * as is from 'predicates';
 import {CreateQueueCommand, DeleteQueueCommand, GetQueueAttributesCommand, GetQueueUrlCommand, SQSClient} from '@aws-sdk/client-sqs';
+import {QueueAttributeName} from "@aws-sdk/client-sqs/dist-types/models/models_0";
 
 const assertQueueName = is.assert(
 	is.all(
@@ -191,7 +192,7 @@ export class QueueManager {
 			return;
 		}
 
-		const attributes = [
+		const attributes: QueueAttributeName[] = [
 			"DelaySeconds",
 			"RedrivePolicy",
 			"KmsDataKeyReusePeriodSeconds",
