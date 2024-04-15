@@ -36,7 +36,7 @@ export class Message<TBody = string, TAttributes extends Message.Attributes = Me
 	 * Approximate retry attempt obtained from `ApproximateReceiveCount` attribute
 	 */
 	get approximateRetryAttempt(): number {
-		if (this.raw.Attributes && 'ApproximateReceiveCount' in this.raw.Attributes) {
+		if (this.raw.Attributes && 'ApproximateReceiveCount' in this.raw.Attributes && this.raw.Attributes.ApproximateReceiveCount) {
 			return parseInt(this.raw.Attributes.ApproximateReceiveCount, 10);
 		}
 
@@ -47,7 +47,7 @@ export class Message<TBody = string, TAttributes extends Message.Attributes = Me
 	 * Approximate first receive date obtained from `ApproximateFirstReceiveTimestamp` attribute
 	 */
 	get approximateFirstReceiveDate(): Date | undefined {
-		if (this.raw.Attributes && 'ApproximateFirstReceiveTimestamp' in this.raw.Attributes) {
+		if (this.raw.Attributes && 'ApproximateFirstReceiveTimestamp' in this.raw.Attributes && this.raw.Attributes.ApproximateFirstReceiveTimestamp) {
 			return new Date(parseInt(this.raw.Attributes.ApproximateFirstReceiveTimestamp, 10));
 		}
 	}
