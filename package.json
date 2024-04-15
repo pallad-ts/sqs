@@ -1,6 +1,6 @@
 {
   "name": "@pallad/sqs",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "description": "AWS SQS Consumer, Producer and Manager",
   "main": "compiled/index.js",
   "types": "compiled/index.d.ts",
