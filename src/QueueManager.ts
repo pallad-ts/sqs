@@ -1,6 +1,6 @@
 import {Queue} from "./Queue";
 import * as is from 'predicates';
-import {CreateQueueCommand, DeleteQueueCommand, GetQueueAttributesCommand, GetQueueUrlCommand, QueueAttributeName, SQSClient} from '@aws-sdk/client-sqs';
+import {CreateQueueCommand, DeleteQueueCommand, GetQueueAttributesCommand, GetQueueUrlCommand, SQSClient} from '@aws-sdk/client-sqs';
 
 const assertQueueName = is.assert(
 	is.all(
@@ -176,7 +176,7 @@ export class QueueManager {
 
 			return result.QueueUrl;
 		} catch (e: any) {
-			if (e.Error?.Code === 'AWS.SimpleQueueService.NonExistentQueue') {
+			if (e.Error?.Code === NON_EXISTENT_QUEUE_ERROR_CODE || e.Code === NON_EXISTENT_QUEUE_ERROR_CODE) {
 				return undefined;
 			}
 
@@ -231,3 +231,6 @@ export class QueueManager {
 		}));
 	}
 }
+
+
+const NON_EXISTENT_QUEUE_ERROR_CODE = 'AWS.SimpleQueueService.NonExistentQueue';
