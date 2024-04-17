@@ -29,7 +29,7 @@
   ],
   "homepage": "https://github.com/pallad-ts/sqs#readme",
   "dependencies": {
-    "@aws-sdk/client-sqs": "^3.554.0",
+    "@aws-sdk/client-sqs": "^3.556.0",
     "@pallad/id": "^1",
     "@types/debug": "0.0.29",
     "alpha-serializer": "^0.5",
